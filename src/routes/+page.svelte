@@ -3,6 +3,7 @@
   import { init, miniApp, postEvent } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLParagraphElement
+  let consEl2: HTMLParagraphElement
 
   const initializeTelegramSDK = async () => {
     try {
@@ -30,7 +31,8 @@
 
     const params = new URLSearchParams(hash);
     console.log(params.get('tgWebAppVersion')); // "6.2"
-    consEl.innerHTML = hash + '<br />' + params.get('tgWebAppVersion')
+    consEl.innerText = hash
+    consEl2.innerText = params.get('tgWebAppVersion') ?? ''
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
@@ -39,9 +41,4 @@
 <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
 <p style="margin-top: 2rem; font-weight: 700;">Console</p>
 <p bind:this={consEl}></p>
-
-<style lang="scss">
-  .a {
-    font-weight: 500;
-  }
-</style>
+<p bind:this={consEl2}></p>
