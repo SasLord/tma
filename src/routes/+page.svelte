@@ -4,6 +4,7 @@
 
   let consEl: HTMLParagraphElement
   let consEl2: HTMLParagraphElement
+  let consEl3: HTMLParagraphElement
 
   const initializeTelegramSDK = async () => {
     try {
@@ -31,8 +32,8 @@
 
     const params = new URLSearchParams(hash);
     console.log(params.get('tgWebAppVersion')); // "6.2"
-    consEl.innerText = hash
-    consEl2.innerText = params.get('tgWebAppVersion') ?? ''
+    consEl2.innerText = hash
+    consEl3.innerText = params.get('tgWebAppVersion') ?? ''
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
@@ -42,3 +43,4 @@
 <p style="margin-top: 2rem; font-weight: 700;">Console</p>
 <p bind:this={consEl}></p>
 <p bind:this={consEl2}></p>
+<p bind:this={consEl3}></p>
