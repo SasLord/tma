@@ -25,6 +25,12 @@
   onMount(() => {
     void initializeTelegramSDK()
 
+    const hash = window.location.hash.slice(1);
+    console.log(hash); // tgWebAppData=...&tgWebAppVersion=6.2&...
+
+    const params = new URLSearchParams(hash);
+    console.log(params.get('tgWebAppVersion')); // "6.2"
+    consEl.innerHTML = hash + '<br />' + params.get('tgWebAppVersion')
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
