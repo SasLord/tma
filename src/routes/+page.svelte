@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { init, miniApp } from '@telegram-apps/sdk-svelte'
+  import { init, miniApp, postEvent } from '@telegram-apps/sdk-svelte'
 
   const initializeTelegramSDK = async () => {
     try {
@@ -20,17 +20,11 @@
 
   onMount(() => {
     void initializeTelegramSDK()
-    const data = JSON.stringify({
-      eventType: 'web_app_setup_back_button',
-      eventData: {
-        is_visible: true
-      }
-    })
 
-    window.parent.postMessage(data, '*')
+    postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
 
 <h1>Welcome to SvelteKit</h1>
 <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-SDK
+Test Event
