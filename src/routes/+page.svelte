@@ -52,8 +52,13 @@
 
 <style lang="scss">
   .console {
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
     margin-top: 1rem;
     padding: 1rem;
+    width: 100%;
+    max-height: 50svh;
     color: #fff;
     background-color: #000;
     border: 1px solid #aaa;
