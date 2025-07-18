@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { addToHomeScreen, postEvent } from '@telegram-apps/sdk-svelte'
+  import { checkHomeScreenStatus, postEvent } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLDivElement
   let testEl: HTMLDivElement
@@ -132,75 +132,18 @@
   const toHomeScreen = () => {
     addToConsole('🔄 Попытка добавления на домашний экран...')
     
-    // Сначала проверяем требования
-    const requirementsMet = checkAddToHomeScreenRequirements()
-    
+    if (checkHomeScreenStatus.isAvailable()) {
+      checkHomeScreenStatus().then(status => {
+        addToConsole('checkHomeScreenStatus: ' + status)
+      })
+    }
+
     try {
-      // Проверяем доступность функции из SDK
-      // if (addToHomeScreen.isAvailable()) {
-      //   addToConsole('✅ addToHomeScreen доступна через SDK')
-      //   addToHomeScreen()
-      //   addToConsole('📤 Вызвана addToHomeScreen() из SDK')
-        
-      //   // Если требования не выполнены, сразу показываем инструкции
-      //   if (!requirementsMet) {
-      //     addToConsole('⚠️ Требования не выполнены, показываем инструкции')
-      //     setTimeout(() => showSimpleInstructions(), 500)
-      //   } else {
-      //     // Ждём дольше для нормального случая
-      //     setTimeout(() => {
-      //       addToConsole('⏱️ Показываем инструкции через 3 сек на всякий случай')
-      //       showSimpleInstructions()
-      //     }, 3000)
-      //   }
-        
-      // } else {
-        // addToConsole('❌ addToHomeScreen недоступна через SDK')
-        
-        // Пробуем через SDK postEvent
-        try {
-          addToConsole('📡 Пробуем SDK postEvent...')
-          postEvent('web_app_add_to_home_screen')
-          addToConsole('📤 Отправлен SDK postEvent("web_app_add_to_home_screen")')
-        } catch (sdkError) {
-          addToConsole('❌ SDK postEvent не сработал: ' + sdkError)
-        }
-        
-        // Пробуем напрямую через Telegram WebApp API
-        if (window.Telegram?.WebApp) {
-          const webApp = window.Telegram.WebApp as any
-          addToConsole('🔍 Проверяем Telegram WebApp API...')
-          
-          if (typeof webApp.addToHomeScreen === 'function') {
-            addToConsole('✅ Найден webApp.addToHomeScreen, вызываем...')
-            
-            try {
-              webApp.addToHomeScreen()
-              addToConsole('📤 Вызвана webApp.addToHomeScreen()')
-              
-              // Показываем инструкции через разное время в зависимости от требований
-              setTimeout(() => {
-                addToConsole('⏱️ Показываем инструкции')
-                showSimpleInstructions()
-              }, requirementsMet ? 3000 : 500)
-              
-            } catch (addError) {
-              addToConsole('❌ Ошибка при вызове addToHomeScreen: ' + addError)
-              showSimpleInstructions()
-            }
-          } else {
-            addToConsole('❌ webApp.addToHomeScreen не найдена')
-            showSimpleInstructions()
-          }
-        } else {
-          addToConsole('❌ Telegram WebApp API недоступно')
-          showSimpleInstructions()
-        }
-      // }
-    } catch (error) {
-      addToConsole('💥 Ошибка: ' + error)
-      console.error('Полная ошибка:', error)
-      showSimpleInstructions()
+      addToConsole('📡 Пробуем SDK postEvent...')
+      postEvent('web_app_add_to_home_screen')
+      addToConsole('📤 Отправлен SDK postEvent("web_app_add_to_home_screen")')
+    } catch (sdkError) {
+      addToConsole('❌ SDK postEvent не сработал: ' + sdkError)
     }
   }
 
