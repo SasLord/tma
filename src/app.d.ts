@@ -36,7 +36,6 @@ interface TelegramWebApp {
 	showAlert(message: string, callback?: () => void): void;
 	showConfirm(message: string, callback?: (confirmed: boolean) => void): void;
 	showPopup(params: Record<string, unknown>, callback?: (buttonId: string) => void): void;
-	addToHomeScreen(): void;
 	// Add more methods as needed
 }
 

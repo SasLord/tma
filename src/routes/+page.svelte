@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { addToHomeScreen } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLDivElement
   let testEl: HTMLDivElement
@@ -11,45 +12,9 @@
     console.log(message)
   }
 
-  const addToHomeScreen = () => {
-    try {
-      // Сначала пробуем Telegram WebApp API
-      if (window.Telegram?.WebApp?.addToHomeScreen) {
-        window.Telegram.WebApp.addToHomeScreen()
-        addToConsole('✅ Запрос на добавление на домашний экран отправлен (Telegram)')
-        return
-      }
-
-      addToConsole('ℹ️ Telegram addToHomeScreen недоступен')
-      
-      // Fallback для PWA в обычных браузерах
-      if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
-        addToConsole('🔄 Попытка показать PWA install prompt...')
-        
-        // Проверяем, можно ли установить как PWA
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault()
-          // @ts-ignore
-          e.prompt()
-          addToConsole('✅ PWA install prompt показан')
-        })
-        
-        // Если событие уже прошло, информируем пользователя
-        addToConsole('📱 Для добавления на домашний экран используйте меню браузера')
-      } else {
-        // Инструкции для разных платформ
-        const userAgent = navigator.userAgent.toLowerCase()
-        
-        if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
-          addToConsole('📱 iOS: Нажмите кнопку "Поделиться" и выберите "На экран Домой"')
-        } else if (userAgent.includes('android')) {
-          addToConsole('📱 Android: Откройте меню браузера и выберите "Добавить на главный экран"')
-        } else {
-          addToConsole('💻 Для добавления используйте меню браузера (⋮) → "Установить приложение"')
-        }
-      }
-    } catch (error) {
-      addToConsole('❌ Ошибка при добавлении на домашний экран: ' + error)
+  const toHomeScreen = () => {
+    if (addToHomeScreen.isAvailable()) {
+      addToHomeScreen()
     }
   }
 
@@ -100,7 +65,7 @@
 <div bind:this={consEl} class="console">
   <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
 </div>
-<button class="add-to-home-btn" on:click={() => addToHomeScreen()}>
+<button class="add-to-home-btn" on:click={() => toHomeScreen()}>
   📱 Add to HomeScreen
 </button>
 <div class="test-vars">
