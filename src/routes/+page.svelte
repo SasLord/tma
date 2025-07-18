@@ -12,6 +12,26 @@
     console.log(message)
   }
 
+  const showInstructions = () => {
+    try {
+      if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showPopup === 'function') {
+        const webApp = window.Telegram.WebApp as any
+        webApp.showPopup({
+          title: '📱 Как добавить на главный экран',
+          message: 'Есть 2 способа:\n\n🔹 Способ 1:\n1. Нажмите ⋮ (меню) в правом верхнем углу\n2. Выберите "Добавить на главный экран"\n\n🔹 Способ 2:\n1. Нажмите кнопку "Поделиться" ↗️\n2. Выберите "Добавить на главный экран"\n\n💡 Если не видите эти опции, обновите Telegram до последней версии.',
+          buttons: [
+            {type: 'default', text: 'Понятно'}
+          ]
+        })
+        addToConsole('📖 Показаны подробные инструкции')
+      } else {
+        addToConsole('❌ showPopup недоступен')
+      }
+    } catch (error) {
+      addToConsole('❌ Ошибка показа инструкций: ' + error)
+    }
+  }
+
   const toHomeScreen = () => {
     addToConsole('🔄 Попытка добавления на домашний экран...')
     
@@ -21,6 +41,12 @@
         addToConsole('✅ addToHomeScreen доступна через SDK')
         addToHomeScreen()
         addToConsole('📤 Вызвана addToHomeScreen() из SDK')
+        
+        // Через секунду показываем инструкции на всякий случай
+        setTimeout(() => {
+          showInstructions()
+        }, 1000)
+        
       } else {
         addToConsole('❌ addToHomeScreen недоступна через SDK')
         
@@ -38,57 +64,41 @@
           const webApp = window.Telegram.WebApp as any
           addToConsole('🔍 Проверяем Telegram WebApp API...')
           
-          // Проверяем все доступные методы
-          addToConsole('Доступные методы WebApp:')
-          try {
-            Object.getOwnPropertyNames(webApp).forEach(prop => {
-              if (typeof webApp[prop] === 'function') {
-                addToConsole(`  - ${prop}()`)
-              }
-            })
-          } catch (e) {
-            addToConsole('Не удалось получить список методов')
-          }
-          
           if (typeof webApp.addToHomeScreen === 'function') {
             addToConsole('✅ Найден webApp.addToHomeScreen, вызываем...')
-            webApp.addToHomeScreen()
-            addToConsole('📤 Вызвана webApp.addToHomeScreen()')
+            
+            // Дополнительные проверки
+            addToConsole('🔍 Дополнительные проверки:')
+            addToConsole('- isExpanded: ' + (webApp.isExpanded ? 'Да' : 'Нет'))
+            addToConsole('- viewportHeight: ' + webApp.viewportHeight)
+            addToConsole('- platform: ' + webApp.platform)
+            
+            try {
+              webApp.addToHomeScreen()
+              addToConsole('📤 Вызвана webApp.addToHomeScreen()')
+              
+              // Через секунду показываем инструкции
+              setTimeout(() => {
+                showInstructions()
+              }, 1000)
+              
+            } catch (addError) {
+              addToConsole('❌ Ошибка при вызове addToHomeScreen: ' + addError)
+              showInstructions()
+            }
           } else {
             addToConsole('❌ webApp.addToHomeScreen не найдена')
-            
-            // Альтернативные попытки
-            addToConsole('🔄 Пробуем альтернативные методы...')
-            
-            // Попытка через postEvent (для более старых версий)
-            try {
-              if (typeof webApp.postEvent === 'function') {
-                addToConsole('📡 Пробуем postEvent...')
-                webApp.postEvent('web_app_add_to_home_screen')
-                addToConsole('📤 Отправлен postEvent("web_app_add_to_home_screen")')
-              }
-            } catch (postEventError) {
-              addToConsole('❌ postEvent не сработал: ' + postEventError)
-            }
-            
-            if (typeof webApp.showPopup === 'function') {
-              addToConsole('💡 Показываем popup с инструкциями')
-              webApp.showPopup({
-                title: 'Добавить на главный экран',
-                message: 'Для добавления приложения на главный экран:\n\n1. Откройте меню Telegram (⋮)\n2. Выберите "Добавить на главный экран"\n\nИли используйте кнопку "Поделиться" в верхнем меню.',
-                buttons: [{type: 'ok', text: 'Понятно'}]
-              })
-            } else {
-              addToConsole('📱 Инструкции: Используйте меню Telegram → "Добавить на главный экран"')
-            }
+            showInstructions()
           }
         } else {
           addToConsole('❌ Telegram WebApp API недоступно')
+          showInstructions()
         }
       }
     } catch (error) {
       addToConsole('💥 Ошибка: ' + error)
       console.error('Полная ошибка:', error)
+      showInstructions()
     }
   }
 
@@ -121,13 +131,20 @@
         
         // Проверяем поддержку addToHomeScreen
         const version = webApp.version || '0.0'
+        const platform = webApp.platform || 'unknown'
         addToConsole('--- ПОДДЕРЖКА ФУНКЦИЙ ---')
         addToConsole('Версия WebApp: ' + version)
+        addToConsole('Платформа: ' + platform)
         
         // addToHomeScreen была добавлена в версии 7.10
         const [major, minor] = version.split('.').map(Number)
         const supportsAddToHome = major > 7 || (major === 7 && minor >= 10)
         addToConsole('Поддержка addToHomeScreen: ' + (supportsAddToHome ? '✅ Да' : '❌ Нет (требуется 7.10+)'))
+        
+        // Проверяем платформу
+        const supportedPlatforms = ['ios', 'android', 'macos', 'windows', 'linux']
+        const platformSupported = supportedPlatforms.includes(platform.toLowerCase())
+        addToConsole('Платформа поддерживается: ' + (platformSupported ? '✅ Да' : '❓ Возможно нет'))
         
         // Устанавливаем цвет фона тестового элемента
         const bgColor = webApp.themeParams?.bg_color || 
@@ -149,9 +166,16 @@
 <div bind:this={consEl} class="console">
   <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
 </div>
-<button class="add-to-home-btn" on:click={() => toHomeScreen()}>
-  📱 Add to HomeScreen
-</button>
+
+<div class="buttons">
+  <button class="add-to-home-btn" on:click={() => toHomeScreen()}>
+    📱 Add to HomeScreen
+  </button>
+  <button class="instructions-btn" on:click={() => showInstructions()}>
+    📖 Show Instructions
+  </button>
+</div>
+
 <div class="test-vars">
   <div></div>
   <div bind:this={testEl}></div>
@@ -176,15 +200,19 @@
     }
   }
 
-  .add-to-home-btn {
+  .buttons {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+  }
+
+  .add-to-home-btn, .instructions-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    margin: 1rem 0;
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, var(--tg-theme-button-color, #2481cc), var(--tg-theme-accent-text-color, #1a6bb8));
-    color: var(--tg-theme-button-text-color, #ffffff);
     border: none;
     border-radius: 0.5rem;
     font-size: 1rem;
@@ -202,6 +230,16 @@
       transform: translateY(0);
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
+  }
+
+  .add-to-home-btn {
+    background: linear-gradient(135deg, var(--tg-theme-button-color, #2481cc), var(--tg-theme-accent-text-color, #1a6bb8));
+    color: var(--tg-theme-button-text-color, #ffffff);
+  }
+
+  .instructions-btn {
+    background: linear-gradient(135deg, var(--tg-theme-secondary-bg-color, #f1f1f1), var(--tg-theme-hint-color, #999999));
+    color: var(--tg-theme-text-color, #000000);
   }
 
   .test-vars {
