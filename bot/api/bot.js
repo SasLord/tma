@@ -75,21 +75,43 @@ bot.command('status', (ctx) => {
 // API endpoint для получения данных от WebApp
 app.post('/api/webapp-data', async (req, res) => {
   try {
+    console.log('📨 Received WebApp request:', JSON.stringify(req.body, null, 2));
+    
     const { initData, services } = req.body
+    
+    if (!initData) {
+      console.error('❌ Missing initData');
+      return res.status(400).json({ error: 'initData отсутствует' });
+    }
+    
+    if (!services || !Array.isArray(services)) {
+      console.error('❌ Missing or invalid services:', services);
+      return res.status(400).json({ error: 'Услуги отсутствуют или неверны' });
+    }
+    
+    console.log('🔐 Validating Telegram data...');
     
     // Проверяем подлинность данных
     if (!validateTelegramData(initData, BOT_TOKEN)) {
+      console.error('❌ Invalid Telegram data');
       return res.status(401).json({ error: 'Недействительные данные' })
     }
+    
+    console.log('✅ Telegram data validated successfully');
     
     // Парсим данные пользователя из initData
     const urlParams = new URLSearchParams(initData)
     const user = JSON.parse(urlParams.get('user') || '{}')
     
+    console.log('👤 Parsed user:', user);
+    
     // Сохраняем пользователя в базу данных
+    console.log('💾 Saving user to database...');
     await saveUserToDatabase(user)
+    console.log('✅ User saved successfully');
     
     // Сохраняем заказ в базу
+    console.log('📦 Saving order to database...');
     const { data, error } = await supabase
       .from('orders')
       .insert([
@@ -104,9 +126,11 @@ app.post('/api/webapp-data', async (req, res) => {
       ])
     
     if (error) {
-      console.error('Ошибка сохранения:', error)
-      return res.status(500).json({ error: 'Ошибка сохранения данных' })
+      console.error('❌ Supabase error:', error)
+      return res.status(500).json({ error: 'Ошибка сохранения данных: ' + error.message })
     }
+    
+    console.log('✅ Order saved successfully:', data);
     
     // Уведомляем админов
     const orderText = `
@@ -124,12 +148,15 @@ ${services.map(service => `• ${service.name} - ${service.price}₽`).join('\n'
 ⏰ Время: ${new Date().toLocaleString('ru-RU')}
     `
     
+    console.log('📢 Sending notifications to admins...');
+    
     // Отправляем уведомления всем админам
     for (const adminId of ADMIN_CHAT_IDS) {
       try {
         await bot.telegram.sendMessage(adminId, orderText)
+        console.log(`✅ Notification sent to admin ${adminId}`);
       } catch (error) {
-        console.error(`Ошибка отправки админу ${adminId}:`, error)
+        console.error(`❌ Error sending to admin ${adminId}:`, error)
       }
     }
     

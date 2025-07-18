@@ -16,7 +16,7 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
   }
 
   try {
-    const response = await fetch('/api/bot/webapp-data', {
+    const response = await fetch('https://bot-1ry2rgzyt-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
