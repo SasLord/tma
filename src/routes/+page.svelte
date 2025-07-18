@@ -137,25 +137,25 @@
     
     try {
       // Проверяем доступность функции из SDK
-      if (addToHomeScreen.isAvailable()) {
-        addToConsole('✅ addToHomeScreen доступна через SDK')
-        addToHomeScreen()
-        addToConsole('📤 Вызвана addToHomeScreen() из SDK')
+      // if (addToHomeScreen.isAvailable()) {
+      //   addToConsole('✅ addToHomeScreen доступна через SDK')
+      //   addToHomeScreen()
+      //   addToConsole('📤 Вызвана addToHomeScreen() из SDK')
         
-        // Если требования не выполнены, сразу показываем инструкции
-        if (!requirementsMet) {
-          addToConsole('⚠️ Требования не выполнены, показываем инструкции')
-          setTimeout(() => showSimpleInstructions(), 500)
-        } else {
-          // Ждём дольше для нормального случая
-          setTimeout(() => {
-            addToConsole('⏱️ Показываем инструкции через 3 сек на всякий случай')
-            showSimpleInstructions()
-          }, 3000)
-        }
+      //   // Если требования не выполнены, сразу показываем инструкции
+      //   if (!requirementsMet) {
+      //     addToConsole('⚠️ Требования не выполнены, показываем инструкции')
+      //     setTimeout(() => showSimpleInstructions(), 500)
+      //   } else {
+      //     // Ждём дольше для нормального случая
+      //     setTimeout(() => {
+      //       addToConsole('⏱️ Показываем инструкции через 3 сек на всякий случай')
+      //       showSimpleInstructions()
+      //     }, 3000)
+      //   }
         
-      } else {
-        addToConsole('❌ addToHomeScreen недоступна через SDK')
+      // } else {
+        // addToConsole('❌ addToHomeScreen недоступна через SDK')
         
         // Пробуем через SDK postEvent
         try {
@@ -196,7 +196,7 @@
           addToConsole('❌ Telegram WebApp API недоступно')
           showSimpleInstructions()
         }
-      }
+      // }
     } catch (error) {
       addToConsole('💥 Ошибка: ' + error)
       console.error('Полная ошибка:', error)
