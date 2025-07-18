@@ -42,20 +42,24 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
 /**
  * Показывает кнопку "Отправить данные" в Telegram
  */
-export function showSendDataButton(onSuccess?: () => void) {
+export function showSendDataButton(selectedServices: ServiceOrder[], onSuccess?: () => void) {
   if (!window.Telegram?.WebApp) {
     console.warn('Telegram WebApp недоступен');
     return;
   }
 
+  console.log('Setting up main button with services:', selectedServices);
+
   // Показываем главную кнопку
   window.Telegram.WebApp.MainButton.setText('Отправить заказ');
   window.Telegram.WebApp.MainButton.show();
 
+  // Очищаем предыдущие обработчики
+  window.Telegram.WebApp.MainButton.offClick(() => {});
+
   // Обработчик нажатия
   window.Telegram.WebApp.MainButton.onClick(() => {
-    // Здесь можно получить данные из компонента
-    const selectedServices = getSelectedServices(); // Ваша логика получения данных
+    console.log('Main button clicked, sending order:', selectedServices);
     
     sendOrderToBot(selectedServices)
       .then(() => {
@@ -80,17 +84,6 @@ export function showSendDataButton(onSuccess?: () => void) {
         });
       });
   });
-}
-
-/**
- * Получает выбранные услуги (пример функции)
- */
-function getSelectedServices(): ServiceOrder[] {
-  // Это пример - замените на вашу логику
-  return [
-    { id: '1', name: 'Услуга 1', price: 1000 },
-    { id: '2', name: 'Услуга 2', price: 2000 }
-  ];
 }
 
 /**

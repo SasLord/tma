@@ -21,11 +21,14 @@
   $: hasSelectedServices = selectedServices.length > 0;
 
   function toggleService(serviceId: string) {
+    console.log('Toggling service:', serviceId);
     services = services.map(service => 
       service.id === serviceId 
         ? { ...service, selected: !service.selected }
         : service
     );
+
+    console.log('Updated services:', services);
 
     // Уведомляем бота о выборе услуги
     const service = services.find(s => s.id === serviceId);
@@ -43,6 +46,8 @@
     services = services.map(service => ({ ...service, selected: false }));
   }
 
+  let isMainButtonShown = false;
+
   onMount(() => {
     // Уведомляем бота об открытии страницы заказа
     notifyBotAction('page_opened', { page: 'services' });
@@ -56,23 +61,45 @@
   });
 
   // Реактивное обновление главной кнопки
-  $: if (hasSelectedServices && window.Telegram?.WebApp) {
-    showSendDataButton(handleOrderSuccess);
-  } else if (window.Telegram?.WebApp?.MainButton) {
-    window.Telegram.WebApp.MainButton.hide();
+  $: {
+    if (hasSelectedServices && window.Telegram?.WebApp && !isMainButtonShown) {
+      console.log('Showing main button');
+      const serviceOrders = selectedServices.map(s => ({
+        id: s.id,
+        name: s.name,
+        price: s.price
+      }));
+      showSendDataButton(serviceOrders, handleOrderSuccess);
+      isMainButtonShown = true;
+    } else if (!hasSelectedServices && window.Telegram?.WebApp?.MainButton && isMainButtonShown) {
+      console.log('Hiding main button');
+      window.Telegram.WebApp.MainButton.hide();
+      isMainButtonShown = false;
+    }
   }
 </script>
 
 <div class="services-page">
   <h1>Выберите услуги</h1>
   
+  <!-- Отладочная информация -->
+  <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px;">
+    <p>Selected services: {selectedServices.length}</p>
+    <p>Has selections: {hasSelectedServices}</p>
+    <p>Main button shown: {isMainButtonShown}</p>
+    <p>Services state: {JSON.stringify(services.map(s => ({id: s.id, selected: s.selected})))}</p>
+  </div>
+  
   <div class="services-list">
     {#each services as service (service.id)}
       <label class="service-item" class:selected={service.selected}>
         <input 
           type="checkbox" 
-          bind:checked={service.selected}
-          on:change={() => toggleService(service.id)}
+          checked={service.selected}
+          on:change={(e) => {
+            console.log('Checkbox changed:', service.id, e.currentTarget.checked);
+            toggleService(service.id);
+          }}
         />
         <div class="service-content">
           <h3>{service.name}</h3>
