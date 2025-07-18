@@ -116,6 +116,11 @@ bot.command('status', (ctx) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  // Устанавливаем CORS заголовки
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -123,8 +128,21 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// OPTIONS handler для CORS preflight
+app.options('/api/*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
 // API endpoint для получения данных от WebApp
 app.post('/api/webapp-data', async (req, res) => {
+  // Устанавливаем CORS заголовки
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
   try {
     console.log('📨 Received WebApp request:', JSON.stringify(req.body, null, 2));
     

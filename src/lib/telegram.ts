@@ -13,7 +13,7 @@ interface ServiceOrder {
 export async function checkBotConnection() {
   try {
     console.log('🔍 Checking bot connection...');
-    const response = await fetch('https://bot-3zebh5cbg-madsas-projects-2f94475c.vercel.app/api/health');
+    const response = await fetch('https://bot-8d22glnfk-madsas-projects-2f94475c.vercel.app/api/health');
     
     if (!response.ok) {
       const errorText = await response.text();
@@ -67,7 +67,7 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
     
     console.log('📤 Sending request to bot:', requestData);
     
-    const response = await fetch('https://bot-3zebh5cbg-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
+    const response = await fetch('https://bot-8d22glnfk-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
