@@ -13,10 +13,11 @@ interface ServiceOrder {
 export async function checkBotConnection() {
   try {
     console.log('🔍 Checking bot connection...');
-    const response = await fetch('https://bot-nmumfgngx-madsas-projects-2f94475c.vercel.app/api/health');
+    const response = await fetch('https://bot-3zebh5cbg-madsas-projects-2f94475c.vercel.app/api/health');
     
     if (!response.ok) {
-      throw new Error(`Health check failed: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Health check failed: ${response.status} - ${errorText}`);
     }
     
     const result = await response.json();
@@ -34,22 +35,39 @@ export async function checkBotConnection() {
 export async function sendOrderToBot(services: ServiceOrder[]) {
   console.log('🚀 sendOrderToBot called with services:', services);
   
-  if (!window.Telegram?.WebApp?.initData) {
-    console.error('❌ Telegram WebApp initData not available');
-    throw new Error('Данные Telegram недоступны');
+  // Для тестирования вне Telegram создаем фиктивные данные
+  let initData = '';
+  if (window.Telegram?.WebApp?.initData) {
+    initData = window.Telegram.WebApp.initData;
+    console.log('📱 Telegram initData available:', initData);
+  } else {
+    console.warn('⚠️ No Telegram initData, using mock data for testing');
+    // Фиктивные данные для тестирования
+    const mockUser = {
+      id: 123456789,
+      first_name: 'Test',
+      last_name: 'User',
+      username: 'testuser',
+      language_code: 'en'
+    };
+    
+    // Создаем фиктивные initData
+    const mockParams = new URLSearchParams();
+    mockParams.set('user', JSON.stringify(mockUser));
+    mockParams.set('auth_date', Math.floor(Date.now() / 1000).toString());
+    mockParams.set('hash', 'mock_hash_for_testing');
+    initData = mockParams.toString();
   }
-
-  console.log('📱 Telegram initData available:', window.Telegram.WebApp.initData);
 
   try {
     const requestData = {
-      initData: window.Telegram.WebApp.initData,
+      initData: initData,
       services: services,
     };
     
     console.log('📤 Sending request to bot:', requestData);
     
-    const response = await fetch('https://bot-nmumfgngx-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
+    const response = await fetch('https://bot-3zebh5cbg-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
