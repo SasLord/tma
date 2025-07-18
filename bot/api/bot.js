@@ -72,6 +72,16 @@ bot.command('status', (ctx) => {
   ctx.reply('✅ Бот работает нормально!')
 })
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  console.log('🏥 Health check requested');
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    message: 'Bot API is working'
+  });
+});
+
 // API endpoint для получения данных от WebApp
 app.post('/api/webapp-data', async (req, res) => {
   try {

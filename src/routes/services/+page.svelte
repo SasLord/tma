@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { showSendDataButton, notifyBotAction } from '$lib/telegram';
+  import { showSendDataButton, notifyBotAction, checkBotConnection } from '$lib/telegram';
 
   interface Service {
     id: string;
@@ -46,6 +46,27 @@
     services = services.map(service => ({ ...service, selected: false }));
   }
 
+  async function testBotConnection() {
+    try {
+      const result = await checkBotConnection();
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showPopup({
+          title: 'Тест соединения',
+          message: `Соединение с ботом: ✅ OK\nВремя: ${result.timestamp}`,
+          buttons: [{ type: 'ok' }]
+        });
+      }
+    } catch (error) {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showPopup({
+          title: 'Тест соединения',
+          message: `Соединение с ботом: ❌ ОШИБКА\n${error.message}`,
+          buttons: [{ type: 'ok' }]
+        });
+      }
+    }
+  }
+
   let isMainButtonShown = false;
 
   onMount(() => {
@@ -88,6 +109,9 @@
     <p>Has selections: {hasSelectedServices}</p>
     <p>Main button shown: {isMainButtonShown}</p>
     <p>Services state: {JSON.stringify(services.map(s => ({id: s.id, selected: s.selected})))}</p>
+    <button on:click={testBotConnection} style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
+      🔍 Тест соединения с ботом
+    </button>
   </div>
   
   <div class="services-list">

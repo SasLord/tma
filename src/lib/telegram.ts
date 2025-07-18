@@ -8,6 +8,27 @@ interface ServiceOrder {
 }
 
 /**
+ * Проверяет связь с ботом
+ */
+export async function checkBotConnection() {
+  try {
+    console.log('🔍 Checking bot connection...');
+    const response = await fetch('https://bot-1ry2rgzyt-madsas-projects-2f94475c.vercel.app/api/health');
+    
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ Bot connection OK:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Bot connection failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Отправляет данные о заказе в бот
  */
 export async function sendOrderToBot(services: ServiceOrder[]) {
