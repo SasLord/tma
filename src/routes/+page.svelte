@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { addToHomeScreen } from '@telegram-apps/sdk-svelte'
+  import { addToHomeScreen } from '@telegram-apps/sdk'
+  // import { addToHomeScreen } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLDivElement
   let testEl: HTMLDivElement
