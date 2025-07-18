@@ -45,12 +45,25 @@
     for (const [key, value] of tgWebAppData.entries()) {
       addToConsole(`${key}: ${value}`)
     }
-    addToConsole('initData: ' + (window.Telegram.WebApp.initData ?? ''))
-    addToConsole('initDataUnsafe: ' + (window.Telegram.WebApp.initDataUnsafe ?? ''))
-    addToConsole('version: ' + (window.Telegram.WebApp.version ?? ''))
-    addToConsole('platform: ' + (window.Telegram.WebApp.platform ?? ''))
-    addToConsole('colorScheme: ' + (window.Telegram.WebApp.colorScheme ?? ''))
-    testEl.style.backgroundColor = (window.Telegram.WebApp.themeParams['header_bg_color'] ?? 'red')
+    
+    // Получаем и парсим тему параметры
+    const stylesParam = params.get('tgWebAppThemeParams')
+    let themeParams: Record<string, string> = {}
+    if (stylesParam) {
+      try {
+        themeParams = JSON.parse(decodeURIComponent(stylesParam))
+        addToConsole('Theme params: ' + JSON.stringify(themeParams))
+      } catch (error) {
+        addToConsole('Ошибка парсинга theme params: ' + error)
+      }
+    }
+    
+    // addToConsole('initData: ' + (window.Telegram.WebApp.initData ?? ''))
+    // addToConsole('initDataUnsafe: ' + (window.Telegram.WebApp.initDataUnsafe ?? ''))
+    // addToConsole('version: ' + (window.Telegram.WebApp.version ?? ''))
+    // addToConsole('platform: ' + (window.Telegram.WebApp.platform ?? ''))
+    // addToConsole('colorScheme: ' + (window.Telegram.WebApp.colorScheme ?? ''))
+    testEl.style.backgroundColor = themeParams.bg_color ?? '#fff'
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
