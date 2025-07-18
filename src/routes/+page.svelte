@@ -3,8 +3,6 @@
   import { init, miniApp, postEvent } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLParagraphElement
-  let consEl2: HTMLParagraphElement
-  let consEl3: HTMLParagraphElement
 
   const initializeTelegramSDK = async () => {
     try {
@@ -13,34 +11,56 @@
 
       if (miniApp.ready.isAvailable()) {
         await miniApp.ready()
-        console.log('Mini App готово')
-        consEl.innerText = 'Mini App готово'
+        addToConsole('Mini App готово')
       }
 
 
     } catch (error) {
-      console.error('Ошибка инициализации:', error)
-      consEl.innerText = 'Ошибка инициализации: ' + error
+      addToConsole('Ошибка инициализации: ' + error)
     }
+  }
+
+  const addToConsole = (message: string) => {
+    const p = document.createElement('p')
+    p.innerText = message
+    consEl.appendChild(p)
+    console.log(message)
   }
 
   onMount(() => {
     void initializeTelegramSDK()
 
-    const hash = window.location.hash.slice(1);
-    console.log(hash); // tgWebAppData=...&tgWebAppVersion=6.2&...
+    const hash = window.location.hash.slice(1)
+    addToConsole('Hash: ' + hash) // tgWebAppData=...&tgWebAppVersion=6.2&...
 
-    const params = new URLSearchParams(hash);
-    console.log(params.get('tgWebAppVersion')); // "6.2"
-    consEl2.innerText = hash
-    consEl3.innerText = params.get('tgWebAppVersion') ?? ''
+    const params = new URLSearchParams(hash)
+    addToConsole('tgWebAppVersion: ' + (params.get('tgWebAppVersion') ?? ''))
+    addToConsole('initData: ' + ((window as any).Telegram.WebApp.initData ?? ''))
+    addToConsole('initDataUnsafe: ' + ((window as any).Telegram.WebApp.initDataUnsafe ?? ''))
+    addToConsole('version: ' + ((window as any).Telegram.WebApp.version ?? ''))
+    addToConsole('platform: ' + ((window as any).Telegram.WebApp.platform ?? ''))
+    addToConsole('colorScheme: ' + ((window as any).Telegram.WebApp.colorScheme ?? ''))
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
 
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-<p style="margin-top: 2rem; font-weight: 700;">Console</p>
-<p bind:this={consEl}></p>
-<p bind:this={consEl2}></p>
-<p bind:this={consEl3}></p>
+<h1 style="text-align: center;">TMA</h1>
+
+<div bind:this={consEl} class="console">
+  <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
+</div>
+
+<style lang="scss">
+  .console {
+    margin-top: 1rem;
+    padding: 1rem;
+    color: #fff;
+    background-color: #000;
+    border: 1px solid #aaa;
+    border-radius: .5rem;
+
+    p:not(:first-child) {
+      margin: .25rem 0;
+    }
+  }
+</style>
