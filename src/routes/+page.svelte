@@ -1,25 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { init, miniApp, postEvent } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLDivElement
   let testEl: HTMLDivElement
-
-  const initializeTelegramSDK = async () => {
-    try {
-      await init()
-
-
-      if (miniApp.ready.isAvailable()) {
-        await miniApp.ready()
-        addToConsole('Mini App готово')
-      }
-
-
-    } catch (error) {
-      addToConsole('Ошибка инициализации: ' + error)
-    }
-  }
 
   const addToConsole = (message: string) => {
     const p = document.createElement('p')
@@ -29,42 +12,44 @@
   }
 
   onMount(() => {
-    void initializeTelegramSDK()
-
     const hash = window.location.hash.slice(1)
-    addToConsole('Hash: ' + hash) // tgWebAppData=...&tgWebAppVersion=6.2&...
+    addToConsole('Hash: ' + hash)
 
     const params = new URLSearchParams(hash)
     addToConsole('tgWebAppVersion: ' + (params.get('tgWebAppVersion') ?? ''))
-    addToConsole(`--- HASH ---`)
+    addToConsole(`--- HASH PARAMS ---`)
     for (const [key, value] of params.entries()) {
       addToConsole(`${key}: ${value}`)
     }
+    
     const tgWebAppData = new URLSearchParams(params.get('tgWebAppData') ?? '')
     addToConsole(`--- tgWebAppData ---`)
     for (const [key, value] of tgWebAppData.entries()) {
       addToConsole(`${key}: ${value}`)
     }
     
-    // Получаем и парсим тему параметры
-    const stylesParam = params.get('tgWebAppThemeParams')
-    let themeParams: Record<string, string> = {}
-    if (stylesParam) {
-      try {
-        themeParams = JSON.parse(decodeURIComponent(stylesParam))
-        addToConsole('Theme params: ' + JSON.stringify(themeParams))
-      } catch (error) {
-        addToConsole('Ошибка парсинга theme params: ' + error)
+    // Отображаем информацию о Telegram WebApp (если доступно)
+    try {
+      if (window.Telegram?.WebApp) {
+        const webApp = window.Telegram.WebApp
+        addToConsole('--- TELEGRAM WEBAPP ---')
+        addToConsole('initData: ' + (webApp.initData || 'не найдено'))
+        addToConsole('version: ' + (webApp.version || 'не найдено'))
+        addToConsole('platform: ' + (webApp.platform || 'не найдено'))
+        addToConsole('colorScheme: ' + (webApp.colorScheme || 'не найдено'))
+        
+        // Устанавливаем цвет фона тестового элемента
+        const bgColor = webApp.themeParams?.bg_color || 
+                       getComputedStyle(document.documentElement).getPropertyValue('--tg-theme-bg-color') || 
+                       '#fff'
+        testEl.style.backgroundColor = bgColor
+      } else {
+        addToConsole('Telegram WebApp API недоступно')
+        testEl.style.backgroundColor = '#f0f0f0'
       }
+    } catch (error) {
+      addToConsole('Ошибка доступа к Telegram WebApp: ' + error)
     }
-    
-    // addToConsole('initData: ' + (window.Telegram.WebApp.initData ?? ''))
-    // addToConsole('initDataUnsafe: ' + (window.Telegram.WebApp.initDataUnsafe ?? ''))
-    // addToConsole('version: ' + (window.Telegram.WebApp.version ?? ''))
-    // addToConsole('platform: ' + (window.Telegram.WebApp.platform ?? ''))
-    // addToConsole('colorScheme: ' + (window.Telegram.WebApp.colorScheme ?? ''))
-    testEl.style.backgroundColor = themeParams.bg_color ?? '#fff'
-    // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
 
