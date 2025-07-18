@@ -39,6 +39,35 @@ function validateTelegramData(initData, botToken) {
   }
 }
 
+// Функция сохранения пользователя в базу данных
+async function saveUserToDatabase(user) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .upsert([
+        {
+          telegram_id: user.id,
+          username: user.username,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          is_premium: user.is_premium || false,
+          language_code: user.language_code || 'en',
+          updated_at: new Date().toISOString()
+        }
+      ])
+
+    if (error) {
+      console.error('❌ Error saving user:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('❌ saveUserToDatabase failed:', error)
+    throw error
+  }
+}
+
 // Команды бота
 bot.start((ctx) => {
   const keyboard = {
@@ -74,7 +103,6 @@ bot.command('status', (ctx) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  console.log('🏥 Health check requested');
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
