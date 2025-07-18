@@ -36,6 +36,9 @@
 
     const params = new URLSearchParams(hash)
     addToConsole('tgWebAppVersion: ' + (params.get('tgWebAppVersion') ?? ''))
+    for (const [key, value] of params.entries()) {
+      addToConsole(`${key}: ${value}`)
+    }
     addToConsole('initData: ' + ((window as any).Telegram.WebApp.initData ?? ''))
     addToConsole('initDataUnsafe: ' + ((window as any).Telegram.WebApp.initDataUnsafe ?? ''))
     addToConsole('version: ' + ((window as any).Telegram.WebApp.version ?? ''))
