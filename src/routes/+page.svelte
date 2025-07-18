@@ -36,15 +36,21 @@
 
     const params = new URLSearchParams(hash)
     addToConsole('tgWebAppVersion: ' + (params.get('tgWebAppVersion') ?? ''))
+    addToConsole(`--- HASH ---`)
     for (const [key, value] of params.entries()) {
       addToConsole(`${key}: ${value}`)
     }
-    addToConsole('initData: ' + ((window as any).Telegram.WebApp.initData ?? ''))
-    addToConsole('initDataUnsafe: ' + ((window as any).Telegram.WebApp.initDataUnsafe ?? ''))
-    addToConsole('version: ' + ((window as any).Telegram.WebApp.version ?? ''))
-    addToConsole('platform: ' + ((window as any).Telegram.WebApp.platform ?? ''))
-    addToConsole('colorScheme: ' + ((window as any).Telegram.WebApp.colorScheme ?? ''))
-    testEl.style.backgroundColor = (window as any).Telegram.WebApp.themeParams['header_bg_color'] ?? 'red'
+    const tgWebAppData = new URLSearchParams(params.get('tgWebAppData') ?? '')
+    addToConsole(`--- tgWebAppData ---`)
+    for (const [key, value] of tgWebAppData.entries()) {
+      addToConsole(`${key}: ${value}`)
+    }
+    addToConsole('initData: ' + (window.Telegram.WebApp.initData ?? ''))
+    addToConsole('initDataUnsafe: ' + (window.Telegram.WebApp.initDataUnsafe ?? ''))
+    addToConsole('version: ' + (window.Telegram.WebApp.version ?? ''))
+    addToConsole('platform: ' + (window.Telegram.WebApp.platform ?? ''))
+    addToConsole('colorScheme: ' + (window.Telegram.WebApp.colorScheme ?? ''))
+    testEl.style.backgroundColor = (window.Telegram.WebApp.themeParams['header_bg_color'] ?? 'red')
     // postEvent('web_app_setup_back_button', { is_visible: true })
   })
 </script>
