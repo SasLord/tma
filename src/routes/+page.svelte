@@ -129,24 +129,6 @@
     }
   }
 
-  const toHomeScreen = () => {
-    addToConsole('🔄 Попытка добавления на домашний экран...')
-    
-    if (checkHomeScreenStatus.isAvailable()) {
-      checkHomeScreenStatus().then(status => {
-        addToConsole('checkHomeScreenStatus: ' + status)
-      })
-    }
-
-    try {
-      addToConsole('📡 Пробуем SDK postEvent...')
-      postEvent('web_app_add_to_home_screen')
-      addToConsole('📤 Отправлен SDK postEvent("web_app_add_to_home_screen")')
-    } catch (sdkError) {
-      addToConsole('❌ SDK postEvent не сработал: ' + sdkError)
-    }
-  }
-
   onMount(() => {
     const hash = window.location.hash.slice(1)
     addToConsole('Hash: ' + hash)
@@ -231,21 +213,6 @@
 
 <div bind:this={consEl} class="console">
   <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
-</div>
-
-<div class="buttons">
-  <button class="add-to-home-btn" on:click={() => toHomeScreen()}>
-    📱 Add to HomeScreen
-  </button>
-  <button class="instructions-btn" on:click={() => showInstructions()}>
-    📖 Show Instructions
-  </button>
-  <button class="simple-btn" on:click={() => showSimpleInstructions()}>
-    💡 Simple Help
-  </button>
-  <button class="check-btn" on:click={() => checkAddToHomeScreenRequirements()}>
-    🔍 Check Requirements
-  </button>
 </div>
 
 <div class="test-vars">

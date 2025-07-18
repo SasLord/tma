@@ -1,0 +1,6 @@
+{
+  "functions": ["api/bot.js"],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/bot" }
+  ]
+}
