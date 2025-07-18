@@ -11,6 +11,48 @@
     console.log(message)
   }
 
+  const addToHomeScreen = () => {
+    try {
+      // Сначала пробуем Telegram WebApp API
+      if (window.Telegram?.WebApp?.addToHomeScreen) {
+        window.Telegram.WebApp.addToHomeScreen()
+        addToConsole('✅ Запрос на добавление на домашний экран отправлен (Telegram)')
+        return
+      }
+
+      addToConsole('ℹ️ Telegram addToHomeScreen недоступен')
+      
+      // Fallback для PWA в обычных браузерах
+      if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
+        addToConsole('🔄 Попытка показать PWA install prompt...')
+        
+        // Проверяем, можно ли установить как PWA
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault()
+          // @ts-ignore
+          e.prompt()
+          addToConsole('✅ PWA install prompt показан')
+        })
+        
+        // Если событие уже прошло, информируем пользователя
+        addToConsole('📱 Для добавления на домашний экран используйте меню браузера')
+      } else {
+        // Инструкции для разных платформ
+        const userAgent = navigator.userAgent.toLowerCase()
+        
+        if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+          addToConsole('📱 iOS: Нажмите кнопку "Поделиться" и выберите "На экран Домой"')
+        } else if (userAgent.includes('android')) {
+          addToConsole('📱 Android: Откройте меню браузера и выберите "Добавить на главный экран"')
+        } else {
+          addToConsole('💻 Для добавления используйте меню браузера (⋮) → "Установить приложение"')
+        }
+      }
+    } catch (error) {
+      addToConsole('❌ Ошибка при добавлении на домашний экран: ' + error)
+    }
+  }
+
   onMount(() => {
     const hash = window.location.hash.slice(1)
     addToConsole('Hash: ' + hash)
@@ -58,6 +100,9 @@
 <div bind:this={consEl} class="console">
   <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
 </div>
+<button class="add-to-home-btn" on:click={() => addToHomeScreen()}>
+  📱 Add to HomeScreen
+</button>
 <div class="test-vars">
   <div></div>
   <div bind:this={testEl}></div>
@@ -81,6 +126,35 @@
       margin: .25rem 0;
     }
   }
+
+  .add-to-home-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, var(--tg-theme-button-color, #2481cc), var(--tg-theme-accent-text-color, #1a6bb8));
+    color: var(--tg-theme-button-text-color, #ffffff);
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+  }
+
   .test-vars {
     display: flex;
     width: 100%;
