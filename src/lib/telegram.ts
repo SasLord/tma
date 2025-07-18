@@ -11,30 +11,45 @@ interface ServiceOrder {
  * Отправляет данные о заказе в бот
  */
 export async function sendOrderToBot(services: ServiceOrder[]) {
+  console.log('🚀 sendOrderToBot called with services:', services);
+  
   if (!window.Telegram?.WebApp?.initData) {
+    console.error('❌ Telegram WebApp initData not available');
     throw new Error('Данные Telegram недоступны');
   }
 
+  console.log('📱 Telegram initData available:', window.Telegram.WebApp.initData);
+
   try {
+    const requestData = {
+      initData: window.Telegram.WebApp.initData,
+      services: services,
+    };
+    
+    console.log('📤 Sending request to bot:', requestData);
+    
     const response = await fetch('https://bot-1ry2rgzyt-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        initData: window.Telegram.WebApp.initData,
-        services: services,
-      }),
+      body: JSON.stringify(requestData),
     });
 
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Ошибка отправки: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Response not ok:', errorText);
+      throw new Error(`Ошибка отправки: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('✅ Success response:', result);
     return result;
   } catch (error) {
-    console.error('Ошибка отправки заказа:', error);
+    console.error('❌ Error in sendOrderToBot:', error);
     throw error;
   }
 }
