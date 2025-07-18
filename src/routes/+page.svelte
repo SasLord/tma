@@ -12,23 +12,60 @@
     console.log(message)
   }
 
+  const showSimpleInstructions = () => {
+    try {
+      if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showAlert === 'function') {
+        const webApp = window.Telegram.WebApp as any
+        webApp.showAlert('Нажмите меню в правом верхнем углу и выберите "Добавить на главный экран"')
+        addToConsole('📖 Показан простой alert с инструкциями')
+      } else {
+        addToConsole('📱 Простые инструкции: Меню → "Добавить на главный экран"')
+      }
+    } catch (error) {
+      addToConsole('❌ Ошибка простых инструкций: ' + error)
+    }
+  }
+
   const showInstructions = () => {
     try {
       if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showPopup === 'function') {
         const webApp = window.Telegram.WebApp as any
+        
+        // Правильный формат для Telegram WebApp popup
         webApp.showPopup({
-          title: '📱 Как добавить на главный экран',
-          message: 'Есть 2 способа:\n\n🔹 Способ 1:\n1. Нажмите ⋮ (меню) в правом верхнем углу\n2. Выберите "Добавить на главный экран"\n\n🔹 Способ 2:\n1. Нажмите кнопку "Поделиться" ↗️\n2. Выберите "Добавить на главный экран"\n\n💡 Если не видите эти опции, обновите Telegram до последней версии.',
-          buttons: [
-            {type: 'default', text: 'Понятно'}
-          ]
+          title: 'Добавить на главный экран',
+          message: 'Способы добавления:\n\n1. Нажмите меню ⋮ в правом верхнем углу\n2. Выберите "Добавить на главный экран"\n\nИли:\n\n1. Нажмите кнопку "Поделиться"\n2. Выберите "Добавить на главный экран"',
+          buttons: [{
+            id: 'ok',
+            type: 'ok',
+            text: 'Понятно'
+          }]
+        }, (buttonId: string) => {
+          addToConsole('Пользователь нажал кнопку: ' + buttonId)
         })
         addToConsole('📖 Показаны подробные инструкции')
       } else {
         addToConsole('❌ showPopup недоступен')
+        
+        // Альтернативный способ - через alert
+        if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showAlert === 'function') {
+          const webApp = window.Telegram.WebApp as any
+          webApp.showAlert('Для добавления на главный экран:\n\n1. Нажмите меню ⋮\n2. Выберите "Добавить на главный экран"\n\nИли используйте кнопку "Поделиться"')
+          addToConsole('📖 Показан alert с инструкциями')
+        } else {
+          addToConsole('📱 Инструкции: Используйте меню Telegram (⋮) → "Добавить на главный экран"')
+        }
       }
     } catch (error) {
       addToConsole('❌ Ошибка показа инструкций: ' + error)
+      
+      // Fallback - показываем через обычный alert браузера
+      try {
+        alert('Для добавления на главный экран:\n\n1. Нажмите меню ⋮ в правом верхнем углу\n2. Выберите "Добавить на главный экран"')
+        addToConsole('📖 Показан browser alert')
+      } catch (alertError) {
+        addToConsole('❌ Даже browser alert не работает: ' + alertError)
+      }
     }
   }
 
@@ -42,10 +79,11 @@
         addToHomeScreen()
         addToConsole('📤 Вызвана addToHomeScreen() из SDK')
         
-        // Через секунду показываем инструкции на всякий случай
+        // Через 2 секунды показываем инструкции на всякий случай
         setTimeout(() => {
+          addToConsole('⏱️ Показываем инструкции через 2 сек на всякий случай')
           showInstructions()
-        }, 1000)
+        }, 2000)
         
       } else {
         addToConsole('❌ addToHomeScreen недоступна через SDK')
@@ -77,28 +115,29 @@
               webApp.addToHomeScreen()
               addToConsole('📤 Вызвана webApp.addToHomeScreen()')
               
-              // Через секунду показываем инструкции
+              // Через 2 секунды показываем инструкции
               setTimeout(() => {
+                addToConsole('⏱️ Показываем инструкции через 2 сек')
                 showInstructions()
-              }, 1000)
+              }, 2000)
               
             } catch (addError) {
               addToConsole('❌ Ошибка при вызове addToHomeScreen: ' + addError)
-              showInstructions()
+              showSimpleInstructions()
             }
           } else {
             addToConsole('❌ webApp.addToHomeScreen не найдена')
-            showInstructions()
+            showSimpleInstructions()
           }
         } else {
           addToConsole('❌ Telegram WebApp API недоступно')
-          showInstructions()
+          showSimpleInstructions()
         }
       }
     } catch (error) {
       addToConsole('💥 Ошибка: ' + error)
       console.error('Полная ошибка:', error)
-      showInstructions()
+      showSimpleInstructions()
     }
   }
 
@@ -174,6 +213,9 @@
   <button class="instructions-btn" on:click={() => showInstructions()}>
     📖 Show Instructions
   </button>
+  <button class="simple-btn" on:click={() => showSimpleInstructions()}>
+    💡 Simple Help
+  </button>
 </div>
 
 <div class="test-vars">
@@ -207,7 +249,7 @@
     flex-wrap: wrap;
   }
 
-  .add-to-home-btn, .instructions-btn {
+  .add-to-home-btn, .instructions-btn, .simple-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -240,6 +282,11 @@
   .instructions-btn {
     background: linear-gradient(135deg, var(--tg-theme-secondary-bg-color, #f1f1f1), var(--tg-theme-hint-color, #999999));
     color: var(--tg-theme-text-color, #000000);
+  }
+
+  .simple-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: #ffffff;
   }
 
   .test-vars {
