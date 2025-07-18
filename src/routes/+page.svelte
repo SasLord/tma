@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { addToHomeScreen } from '@telegram-apps/sdk'
-  // import { addToHomeScreen } from '@telegram-apps/sdk-svelte'
+  import { addToHomeScreen, postEvent } from '@telegram-apps/sdk-svelte'
 
   let consEl: HTMLDivElement
   let testEl: HTMLDivElement
@@ -14,8 +13,82 @@
   }
 
   const toHomeScreen = () => {
-    if (addToHomeScreen.isAvailable()) {
-      addToHomeScreen()
+    addToConsole('🔄 Попытка добавления на домашний экран...')
+    
+    try {
+      // Проверяем доступность функции из SDK
+      if (addToHomeScreen.isAvailable()) {
+        addToConsole('✅ addToHomeScreen доступна через SDK')
+        addToHomeScreen()
+        addToConsole('📤 Вызвана addToHomeScreen() из SDK')
+      } else {
+        addToConsole('❌ addToHomeScreen недоступна через SDK')
+        
+        // Пробуем через SDK postEvent
+        try {
+          addToConsole('📡 Пробуем SDK postEvent...')
+          postEvent('web_app_add_to_home_screen')
+          addToConsole('📤 Отправлен SDK postEvent("web_app_add_to_home_screen")')
+        } catch (sdkError) {
+          addToConsole('❌ SDK postEvent не сработал: ' + sdkError)
+        }
+        
+        // Пробуем напрямую через Telegram WebApp API
+        if (window.Telegram?.WebApp) {
+          const webApp = window.Telegram.WebApp as any
+          addToConsole('🔍 Проверяем Telegram WebApp API...')
+          
+          // Проверяем все доступные методы
+          addToConsole('Доступные методы WebApp:')
+          try {
+            Object.getOwnPropertyNames(webApp).forEach(prop => {
+              if (typeof webApp[prop] === 'function') {
+                addToConsole(`  - ${prop}()`)
+              }
+            })
+          } catch (e) {
+            addToConsole('Не удалось получить список методов')
+          }
+          
+          if (typeof webApp.addToHomeScreen === 'function') {
+            addToConsole('✅ Найден webApp.addToHomeScreen, вызываем...')
+            webApp.addToHomeScreen()
+            addToConsole('📤 Вызвана webApp.addToHomeScreen()')
+          } else {
+            addToConsole('❌ webApp.addToHomeScreen не найдена')
+            
+            // Альтернативные попытки
+            addToConsole('🔄 Пробуем альтернативные методы...')
+            
+            // Попытка через postEvent (для более старых версий)
+            try {
+              if (typeof webApp.postEvent === 'function') {
+                addToConsole('📡 Пробуем postEvent...')
+                webApp.postEvent('web_app_add_to_home_screen')
+                addToConsole('📤 Отправлен postEvent("web_app_add_to_home_screen")')
+              }
+            } catch (postEventError) {
+              addToConsole('❌ postEvent не сработал: ' + postEventError)
+            }
+            
+            if (typeof webApp.showPopup === 'function') {
+              addToConsole('💡 Показываем popup с инструкциями')
+              webApp.showPopup({
+                title: 'Добавить на главный экран',
+                message: 'Для добавления приложения на главный экран:\n\n1. Откройте меню Telegram (⋮)\n2. Выберите "Добавить на главный экран"\n\nИли используйте кнопку "Поделиться" в верхнем меню.',
+                buttons: [{type: 'ok', text: 'Понятно'}]
+              })
+            } else {
+              addToConsole('📱 Инструкции: Используйте меню Telegram → "Добавить на главный экран"')
+            }
+          }
+        } else {
+          addToConsole('❌ Telegram WebApp API недоступно')
+        }
+      }
+    } catch (error) {
+      addToConsole('💥 Ошибка: ' + error)
+      console.error('Полная ошибка:', error)
     }
   }
 
@@ -45,6 +118,16 @@
         addToConsole('version: ' + (webApp.version || 'не найдено'))
         addToConsole('platform: ' + (webApp.platform || 'не найдено'))
         addToConsole('colorScheme: ' + (webApp.colorScheme || 'не найдено'))
+        
+        // Проверяем поддержку addToHomeScreen
+        const version = webApp.version || '0.0'
+        addToConsole('--- ПОДДЕРЖКА ФУНКЦИЙ ---')
+        addToConsole('Версия WebApp: ' + version)
+        
+        // addToHomeScreen была добавлена в версии 7.10
+        const [major, minor] = version.split('.').map(Number)
+        const supportsAddToHome = major > 7 || (major === 7 && minor >= 10)
+        addToConsole('Поддержка addToHomeScreen: ' + (supportsAddToHome ? '✅ Да' : '❌ Нет (требуется 7.10+)'))
         
         // Устанавливаем цвет фона тестового элемента
         const bgColor = webApp.themeParams?.bg_color || 
