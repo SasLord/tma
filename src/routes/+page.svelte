@@ -211,6 +211,8 @@
 
 <h1 style="text-align: center;">TMA</h1>
 
+<a href="/services">Services</a>
+
 <div bind:this={consEl} class="console">
   <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
 </div>

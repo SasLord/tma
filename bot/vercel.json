@@ -1,5 +1,9 @@
 {
-  "functions": ["api/bot.js"],
+  "functions": {
+    "api/bot.js": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/bot" }
   ]
