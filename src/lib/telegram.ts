@@ -8,33 +8,88 @@ interface ServiceOrder {
 }
 
 /**
- * Проверяет связь с ботом
+ * Проверяет связь с ботом через Telegram WebApp API
  */
 export async function checkBotConnection() {
   try {
-    console.log('🔍 Checking bot connection...');
-    const response = await fetch('https://bot-h3ch05s9h-madsas-projects-2f94475c.vercel.app/api/cors-test');
+    console.log('🔍 Checking bot connection through Telegram WebApp...');
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Health check failed: ${response.status} - ${errorText}`);
+    if (!window.Telegram?.WebApp) {
+      throw new Error('Telegram WebApp not available');
     }
-    
-    const result = await response.json();
-    console.log('✅ Bot connection OK:', result);
-    return result;
+
+    // Проверяем наличие инициализационных данных
+    if (window.Telegram.WebApp.initData) {
+      console.log('✅ Telegram WebApp has initData');
+      return { status: 'ok', method: 'telegram_webapp', hasInitData: true };
+    } else {
+      console.log('⚠️ Telegram WebApp available but no initData');
+      return { status: 'ok', method: 'telegram_webapp', hasInitData: false };
+    }
   } catch (error) {
     console.error('❌ Bot connection failed:', error);
-    throw error;
+    // Fallback: попробуем прямое соединение
+    try {
+      const response = await fetch('https://bot-h3ch05s9h-madsas-projects-2f94475c.vercel.app/api/cors-test', {
+        method: 'GET',
+        mode: 'cors'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Direct connection OK:', result);
+      return result;
+    } catch (fetchError) {
+      console.error('❌ Direct connection also failed:', fetchError);
+      throw error;
+    }
   }
 }
 
 /**
- * Отправляет данные о заказе в бот
+ * Отправляет данные о заказе в бот используя встроенный API Telegram
  */
 export async function sendOrderToBot(services: ServiceOrder[]) {
   console.log('🚀 sendOrderToBot called with services:', services);
   
+  // Проверяем доступность Telegram WebApp
+  if (!window.Telegram?.WebApp) {
+    console.error('❌ Telegram WebApp не доступен');
+    throw new Error('Telegram WebApp не доступен');
+  }
+
+  try {
+    // Формируем данные для отправки
+    const orderData = {
+      services: services,
+      total: services.reduce((sum, service) => sum + service.price, 0),
+      timestamp: Date.now()
+    };
+    
+    console.log('📤 Sending order data through Telegram WebApp:', orderData);
+    
+    // Используем встроенный метод Telegram для отправки данных
+    window.Telegram.WebApp.sendData(JSON.stringify(orderData));
+    
+    console.log('✅ Order sent successfully through Telegram WebApp');
+    return { success: true, method: 'telegram_senddata' };
+    
+  } catch (error) {
+    console.error('❌ Error in sendOrderToBot:', error);
+    
+    // Fallback: попробуем прямой HTTP запрос
+    console.log('🔄 Trying fallback HTTP request...');
+    return await sendOrderViaHTTP(services);
+  }
+}
+
+/**
+ * Fallback метод для отправки через HTTP (для тестирования)
+ */
+async function sendOrderViaHTTP(services: ServiceOrder[]) {
   // Для тестирования вне Telegram создаем фиктивные данные
   let initData = '';
   if (window.Telegram?.WebApp?.initData) {
@@ -65,7 +120,7 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
       services: services,
     };
     
-    console.log('📤 Sending request to bot:', requestData);
+    console.log('📤 Sending HTTP fallback request to bot:', requestData);
     
     const response = await fetch('https://bot-h3ch05s9h-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
@@ -85,10 +140,10 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
     }
 
     const result = await response.json();
-    console.log('✅ Success response:', result);
+    console.log('✅ HTTP fallback success:', result);
     return result;
   } catch (error) {
-    console.error('❌ Error in sendOrderToBot:', error);
+    console.error('❌ Error in HTTP fallback:', error);
     throw error;
   }
 }
@@ -116,21 +171,33 @@ export function showSendDataButton(selectedServices: ServiceOrder[], onSuccess?:
     console.log('Main button clicked, sending order:', selectedServices);
     
     sendOrderToBot(selectedServices)
-      .then(() => {
-        window.Telegram.WebApp.showPopup({
-          title: 'Успех!',
-          message: 'Ваш заказ был отправлен',
-          buttons: [{ type: 'ok' }]
-        });
+      .then((result) => {
+        console.log('✅ Order sent successfully:', result);
         
-        if (onSuccess) onSuccess();
-        
-        // Закрываем WebApp после успешной отправки
-        setTimeout(() => {
-          window.Telegram.WebApp.close();
-        }, 1500);
+        // Если использовался метод sendData, то ответ придет через answerWebAppQuery
+        // и WebApp автоматически закроется или покажет результат
+        if (result.method === 'telegram_senddata') {
+          console.log('📱 Order sent via Telegram WebApp, waiting for bot response...');
+          // Не показываем popup, так как бот сам ответит через answerWebAppQuery
+          if (onSuccess) onSuccess();
+        } else {
+          // Fallback HTTP метод
+          window.Telegram.WebApp.showPopup({
+            title: 'Успех!',
+            message: 'Ваш заказ был отправлен',
+            buttons: [{ type: 'ok' }]
+          });
+          
+          if (onSuccess) onSuccess();
+          
+          // Закрываем WebApp после успешной отправки
+          setTimeout(() => {
+            window.Telegram.WebApp.close();
+          }, 1500);
+        }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('❌ Failed to send order:', error);
         window.Telegram.WebApp.showPopup({
           title: 'Ошибка',
           message: 'Не удалось отправить заказ. Попробуйте еще раз.',

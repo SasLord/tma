@@ -114,6 +114,87 @@ bot.command('status', (ctx) => {
   ctx.reply('✅ Бот работает нормально!')
 })
 
+// Обработчик данных от WebApp (через sendData)
+bot.on('web_app_data', async (ctx) => {
+  try {
+    console.log('📱 Received WebApp data:', ctx.webAppData);
+    
+    const data = JSON.parse(ctx.webAppData.data);
+    console.log('📦 Parsed WebApp data:', data);
+    
+    // Получаем пользователя из контекста
+    const user = ctx.from;
+    
+    // Формируем заказ в том же формате, что и HTTP API
+    const orderData = {
+      services: data.services,
+      total: data.total,
+      user_id: user.id,
+      telegram_user_data: JSON.stringify(user)
+    };
+    
+    // Сохраняем пользователя
+    await saveUserToDatabase(user);
+    
+    // Сохраняем заказ
+    console.log('📦 Saving order to database...');
+    const { data: orderResult, error } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select();
+    
+    if (error) {
+      console.error('❌ Database error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Order saved successfully:', orderResult);
+    
+    // Отправляем уведомления администраторам
+    for (const adminId of ADMIN_CHAT_IDS) {
+      try {
+        await bot.telegram.sendMessage(adminId, 
+          `🔔 Новый заказ #${orderResult[0].id}\n\n` +
+          `👤 Пользователь: ${user.first_name} ${user.last_name || ''} (@${user.username || 'без username'})\n` +
+          `💰 Сумма: ${data.total} ₽\n\n` +
+          `📋 Услуги:\n${data.services.map(s => `• ${s.name} - ${s.price} ₽`).join('\n')}`
+        );
+      } catch (error) {
+        console.error(`Failed to send notification to admin ${adminId}:`, error);
+      }
+    }
+    
+    // Отправляем подтверждение пользователю
+    await ctx.answerWebAppQuery(ctx.webAppData.query_id, {
+      type: 'article',
+      id: 'order_success',
+      title: '✅ Заказ отправлен',
+      description: `Заказ на сумму ${data.total} ₽ успешно отправлен`,
+      input_message_content: {
+        message_text: `✅ Заказ #${orderResult[0].id} отправлен!\n\nСумма: ${data.total} ₽\nУслуги: ${data.services.length} шт.`
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing WebApp data:', error);
+    
+    // Отправляем ошибку пользователю
+    try {
+      await ctx.answerWebAppQuery(ctx.webAppData.query_id, {
+        type: 'article',
+        id: 'order_error',
+        title: '❌ Ошибка',
+        description: 'Произошла ошибка при обработке заказа',
+        input_message_content: {
+          message_text: '❌ Произошла ошибка при обработке заказа. Попробуйте еще раз.'
+        }
+      });
+    } catch (answerError) {
+      console.error('❌ Failed to answer WebApp query:', answerError);
+    }
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   // Устанавливаем CORS заголовки
