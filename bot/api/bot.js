@@ -83,6 +83,9 @@ async function saveUserToDatabase(user) {
 
 // Команды бота
 bot.start((ctx) => {
+  // Показываем chat ID для настройки админов
+  console.log('👤 User started bot. Chat ID:', ctx.chat.id, 'User:', ctx.from);
+  
   const keyboard = {
     inline_keyboard: [[
       { 
@@ -93,7 +96,7 @@ bot.start((ctx) => {
   }
   
   ctx.reply(
-    'Добро пожаловать! 👋\n\nОткройте наше веб-приложение для выбора услуг:',
+    `Добро пожаловать! 👋\n\nВаш Chat ID: ${ctx.chat.id}\n\nОткройте наше веб-приложение для выбора услуг:`,
     { reply_markup: keyboard }
   )
 })
@@ -117,7 +120,9 @@ bot.command('status', (ctx) => {
 // Обработчик данных от WebApp (через sendData)
 bot.on('web_app_data', async (ctx) => {
   try {
-    console.log('📱 Received WebApp data:', ctx.webAppData);
+    console.log('📱 ===== RECEIVED WEB_APP_DATA =====');
+    console.log('📱 Raw WebApp data:', ctx.webAppData);
+    console.log('📱 User:', ctx.from);
     
     const data = JSON.parse(ctx.webAppData.data);
     console.log('📦 Parsed WebApp data:', data);
@@ -150,17 +155,35 @@ bot.on('web_app_data', async (ctx) => {
     
     console.log('✅ Order saved successfully:', orderResult);
     
+    // Проверяем настройку админов
+    console.log('👥 Admin chat IDs:', ADMIN_CHAT_IDS);
+    console.log('📧 Sending notifications to', ADMIN_CHAT_IDS.length, 'admins');
+    
     // Отправляем уведомления администраторам
-    for (const adminId of ADMIN_CHAT_IDS) {
+    if (ADMIN_CHAT_IDS.length > 0) {
+      for (const adminId of ADMIN_CHAT_IDS) {
+        try {
+          console.log('📤 Sending notification to admin:', adminId);
+          await bot.telegram.sendMessage(adminId, 
+            `🔔 Новый заказ #${orderResult[0].id}\n\n` +
+            `👤 Пользователь: ${user.first_name} ${user.last_name || ''} (@${user.username || 'без username'})\n` +
+            `💰 Сумма: ${data.total} ₽\n\n` +
+            `📋 Услуги:\n${data.services.map(s => `• ${s.name} - ${s.price} ₽`).join('\n')}`
+          );
+          console.log('✅ Notification sent to admin:', adminId);
+        } catch (error) {
+          console.error(`❌ Failed to send notification to admin ${adminId}:`, error);
+        }
+      }
+    } else {
+      console.warn('⚠️ No admin chat IDs configured, skipping admin notifications');
+      
+      // Если админов нет, отправим уведомление самому пользователю
       try {
-        await bot.telegram.sendMessage(adminId, 
-          `🔔 Новый заказ #${orderResult[0].id}\n\n` +
-          `👤 Пользователь: ${user.first_name} ${user.last_name || ''} (@${user.username || 'без username'})\n` +
-          `💰 Сумма: ${data.total} ₽\n\n` +
-          `📋 Услуги:\n${data.services.map(s => `• ${s.name} - ${s.price} ₽`).join('\n')}`
-        );
-      } catch (error) {
-        console.error(`Failed to send notification to admin ${adminId}:`, error);
+        await ctx.reply(`✅ Ваш заказ #${orderResult[0].id} принят!\n\nСумма: ${data.total} ₽\nУслуги: ${data.services.length} шт.`);
+        console.log('✅ Confirmation sent to user');
+      } catch (replyError) {
+        console.error('❌ Failed to send confirmation to user:', replyError);
       }
     }
     
@@ -193,6 +216,16 @@ bot.on('web_app_data', async (ctx) => {
       console.error('❌ Failed to answer WebApp query:', answerError);
     }
   }
+});
+
+// Обработчик всех сообщений для отладки
+bot.on('message', (ctx) => {
+  console.log('💬 Message received:', {
+    chatId: ctx.chat.id,
+    userId: ctx.from.id,
+    text: ctx.message.text,
+    type: ctx.message.chat?.type
+  });
 });
 
 // Health check endpoint

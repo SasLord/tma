@@ -21,16 +21,28 @@ export async function checkBotConnection() {
     // Проверяем наличие инициализационных данных
     if (window.Telegram.WebApp.initData) {
       console.log('✅ Telegram WebApp has initData');
-      return { status: 'ok', method: 'telegram_webapp', hasInitData: true };
+      return { 
+        status: 'ok', 
+        method: 'telegram_webapp', 
+        hasInitData: true,
+        timestamp: new Date().toISOString(),
+        telegram: 'WebApp connection ready'
+      };
     } else {
       console.log('⚠️ Telegram WebApp available but no initData');
-      return { status: 'ok', method: 'telegram_webapp', hasInitData: false };
+      return { 
+        status: 'ok', 
+        method: 'telegram_webapp', 
+        hasInitData: false,
+        timestamp: new Date().toISOString(),
+        telegram: 'WebApp available but no initData'
+      };
     }
   } catch (error) {
     console.error('❌ Bot connection failed:', error);
     // Fallback: попробуем прямое соединение
     try {
-      const response = await fetch('https://bot-h3ch05s9h-madsas-projects-2f94475c.vercel.app/api/cors-test', {
+      const response = await fetch('https://bot-ixk4j3x2u-madsas-projects-2f94475c.vercel.app/api/cors-test', {
         method: 'GET',
         mode: 'cors'
       });
@@ -122,7 +134,7 @@ async function sendOrderViaHTTP(services: ServiceOrder[]) {
     
     console.log('📤 Sending HTTP fallback request to bot:', requestData);
     
-    const response = await fetch('https://bot-h3ch05s9h-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
+    const response = await fetch('https://bot-ixk4j3x2u-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
