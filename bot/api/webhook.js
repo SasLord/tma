@@ -2,23 +2,26 @@
 import { bot } from './bot.js';
 
 export default async function handler(req, res) {
+  console.log('� Webhook handler called');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  
+  if (req.method !== 'POST') {
+    console.log('❌ Invalid method:', req.method);
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    console.log('📥 Webhook received:', req.method, req.url);
+    console.log('📨 Processing webhook update:', JSON.stringify(req.body, null, 2));
     
-    if (req.method === 'POST') {
-      // Обработка вебхука от Telegram
-      return bot.webhookCallback('/api/webhook')(req, res);
-    } else {
-      // GET запросы - информация о боте
-      res.status(200).json({ 
-        status: 'Bot webhook is ready',
-        timestamp: new Date().toISOString(),
-        method: req.method,
-        url: req.url
-      });
-    }
+    // Передаем обновление боту
+    await bot.handleUpdate(req.body);
+    
+    console.log('✅ Webhook processed successfully');
+    res.status(200).json({ ok: true });
   } catch (error) {
     console.error('❌ Webhook error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }

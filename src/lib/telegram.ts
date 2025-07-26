@@ -42,7 +42,7 @@ export async function checkBotConnection() {
     console.error('❌ Bot connection failed:', error);
     // Fallback: попробуем прямое соединение
     try {
-      const response = await fetch('https://bot-is01j06wb-madsas-projects-2f94475c.vercel.app/api/cors-test', {
+      const response = await fetch('https://bot-blue-five.vercel.app/api/cors-test', {
         method: 'GET',
         mode: 'cors'
       });
@@ -134,7 +134,7 @@ async function sendOrderViaHTTP(services: ServiceOrder[]) {
     
     console.log('📤 Sending HTTP fallback request to bot:', requestData);
     
-    const response = await fetch('https://bot-is01j06wb-madsas-projects-2f94475c.vercel.app/api/webapp-data', {
+    const response = await fetch('https://bot-blue-five.vercel.app/api/webapp-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
