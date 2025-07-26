@@ -22,12 +22,12 @@ export default async function handler(req, res) {
 
     const bot = new Telegraf(BOT_TOKEN);
     
-    // Обрабатываем web_app_data (данные от sendData())
-    bot.on('web_app_data', async (ctx) => {
+    // Проверяем, есть ли web_app_data в обновлении
+    if (req.body.message && req.body.message.web_app_data) {
+      console.log('📱 Found web_app_data in message:', req.body.message.web_app_data);
+      
       try {
-        console.log('📱 Received web_app_data:', ctx.webAppData);
-        
-        const webAppData = JSON.parse(ctx.webAppData.data);
+        const webAppData = JSON.parse(req.body.message.web_app_data.data);
         console.log('📋 Parsed order data:', webAppData);
         
         // Формируем сообщение о заказе
@@ -42,39 +42,51 @@ ${servicesList}
 
 💰 Общая сумма: ${webAppData.total}₽
 
-👤 От пользователя: ${ctx.from.first_name} ${ctx.from.last_name || ''}
+👤 От пользователя: ${req.body.message.from.first_name} ${req.body.message.from.last_name || ''}
 📅 Время заказа: ${new Date().toLocaleString('ru-RU')}`;
 
         // Отправляем сообщение администратору
         const ADMIN_CHAT_ID = '1155907659';
         console.log('📤 Sending order to admin:', ADMIN_CHAT_ID);
         
-        await ctx.telegram.sendMessage(ADMIN_CHAT_ID, message);
+        await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
         
         // Отвечаем пользователю через answerWebAppQuery
-        await ctx.answerWebAppQuery({
-          type: 'article',
-          id: 'order_success',
-          title: 'Заказ принят!',
-          input_message_content: {
-            message_text: `✅ Ваш заказ принят!\n\nСумма: ${webAppData.total}₽\nВремя: ${new Date().toLocaleString('ru-RU')}`
-          }
-        });
+        if (req.body.message.web_app_data.query_id) {
+          await bot.telegram.answerWebAppQuery(req.body.message.web_app_data.query_id, {
+            type: 'article',
+            id: 'order_success',
+            title: 'Заказ принят!',
+            input_message_content: {
+              message_text: `✅ Ваш заказ принят!\n\nСумма: ${webAppData.total}₽\nВремя: ${new Date().toLocaleString('ru-RU')}`
+            }
+          });
+        }
         
         console.log('✅ WebApp order processed successfully');
       } catch (error) {
         console.error('❌ Error processing web_app_data:', error);
         
         // Отвечаем об ошибке
-        await ctx.answerWebAppQuery({
-          type: 'article',
-          id: 'order_error',
-          title: 'Ошибка обработки заказа',
-          input_message_content: {
-            message_text: `❌ Произошла ошибка при обработке заказа. Попробуйте еще раз.`
-          }
-        });
+        if (req.body.message.web_app_data.query_id) {
+          await bot.telegram.answerWebAppQuery(req.body.message.web_app_data.query_id, {
+            type: 'article',
+            id: 'order_error',
+            title: 'Ошибка обработки заказа',
+            input_message_content: {
+              message_text: `❌ Произошла ошибка при обработке заказа. Попробуйте еще раз.`
+            }
+          });
+        }
       }
+    } else {
+      console.log('ℹ️ No web_app_data found in update');
+    }
+    
+    // Также настраиваем обработчик через Telegraf для других случаев
+    bot.on('web_app_data', async (ctx) => {
+      console.log('📱 Telegraf web_app_data handler triggered:', ctx.webAppData);
+      // Этот обработчик может не вызваться в serverless среде
     });
     
     // Передаем обновление боту
