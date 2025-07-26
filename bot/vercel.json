@@ -9,18 +9,6 @@
     },
     "api/webapp-data.js": {
       "maxDuration": 10
-    },
-    "api/test.js": {
-      "maxDuration": 10
-    },
-    "api/bot-status.js": {
-      "maxDuration": 10
-    },
-    "api/webhook-info.js": {
-      "maxDuration": 10
-    },
-    "api/set-webhook.js": {
-      "maxDuration": 10
     }
   },
   "headers": [

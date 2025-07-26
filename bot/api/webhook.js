@@ -1,11 +1,9 @@
-// Отдельный обработчик для вебхука Telegram
-import { bot } from './bot.js';
+import { Telegraf } from 'telegraf';
 
 export default async function handler(req, res) {
-  console.log('� Webhook handler called');
+  console.log('🔗 Webhook handler called');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
   
   if (req.method !== 'POST') {
     console.log('❌ Invalid method:', req.method);
@@ -14,6 +12,15 @@ export default async function handler(req, res) {
 
   try {
     console.log('📨 Processing webhook update:', JSON.stringify(req.body, null, 2));
+    
+    const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    
+    if (!BOT_TOKEN) {
+      console.error('❌ TELEGRAM_BOT_TOKEN not found');
+      return res.status(500).json({ error: 'Bot token not configured' });
+    }
+
+    const bot = new Telegraf(BOT_TOKEN);
     
     // Передаем обновление боту
     await bot.handleUpdate(req.body);

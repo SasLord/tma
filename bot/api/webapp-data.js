@@ -1,10 +1,9 @@
-import { bot } from './bot.js';
+import { Telegraf } from 'telegraf';
 
 export default async function handler(req, res) {
   console.log('🔗 WebApp data handler called');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
   
   // Устанавливаем CORS заголовки
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,6 +12,14 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      message: 'WebApp Data Handler',
+      status: 'ready',
+      timestamp: new Date().toISOString() 
+    });
   }
 
   if (req.method !== 'POST') {
@@ -25,10 +32,20 @@ export default async function handler(req, res) {
     
     const { initData, services } = req.body;
 
-    if (!initData || !services) {
-      console.log('❌ Missing required fields');
-      return res.status(400).json({ error: 'Missing initData or services' });
+    if (!services) {
+      console.log('❌ Missing services field');
+      return res.status(400).json({ error: 'Missing services' });
     }
+
+    // Инициализируем бота для отправки сообщения
+    const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    
+    if (!BOT_TOKEN) {
+      console.error('❌ TELEGRAM_BOT_TOKEN not found');
+      return res.status(500).json({ error: 'Bot token not configured' });
+    }
+
+    const bot = new Telegraf(BOT_TOKEN);
 
     // Формируем текст сообщения
     const servicesList = services.map(service => 
