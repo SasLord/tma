@@ -8,7 +8,8 @@ const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN'
 const SUPABASE_URL = process.env.SUPABASE_URL || 'YOUR_SUPABASE_URL'
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_KEY'
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://your-webapp.vercel.app'
-const ADMIN_CHAT_IDS = process.env.ADMIN_CHAT_IDS?.split(',') || []
+// Временно добавляем Chat ID для тестирования (замените на ваш реальный Chat ID)
+const ADMIN_CHAT_IDS = process.env.ADMIN_CHAT_IDS?.split(',') || ['1155907659']
 
 // Инициализация
 const bot = new Telegraf(BOT_TOKEN)
@@ -188,15 +189,21 @@ bot.on('web_app_data', async (ctx) => {
     }
     
     // Отправляем подтверждение пользователю
-    await ctx.answerWebAppQuery(ctx.webAppData.query_id, {
-      type: 'article',
-      id: 'order_success',
-      title: '✅ Заказ отправлен',
-      description: `Заказ на сумму ${data.total} ₽ успешно отправлен`,
-      input_message_content: {
-        message_text: `✅ Заказ #${orderResult[0].id} отправлен!\n\nСумма: ${data.total} ₽\nУслуги: ${data.services.length} шт.`
-      }
-    });
+    console.log('📤 Sending answerWebAppQuery...');
+    try {
+      await ctx.answerWebAppQuery(ctx.webAppData.query_id, {
+        type: 'article',
+        id: 'order_success',
+        title: '✅ Заказ отправлен',
+        description: `Заказ на сумму ${data.total} ₽ успешно отправлен`,
+        input_message_content: {
+          message_text: `✅ Заказ #${orderResult[0].id} отправлен!\n\nСумма: ${data.total} ₽\nУслуги: ${data.services.length} шт.`
+        }
+      });
+      console.log('✅ answerWebAppQuery sent successfully');
+    } catch (answerError) {
+      console.error('❌ Failed to answerWebAppQuery:', answerError);
+    }
     
   } catch (error) {
     console.error('❌ Error processing WebApp data:', error);
@@ -410,4 +417,24 @@ if (process.env.NODE_ENV === 'production') {
 process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
 
-export default app
+// Экспорт бота для использования в других файлах
+export { bot }
+
+// Экспорт для Vercel - основной обработчик
+export default async function handler(req, res) {
+  try {
+    console.log('🔗 Request:', req.method, req.url);
+    
+    // Обработка вебхука Telegram
+    if (req.url === '/api/webhook' || req.url === '/api/bot') {
+      console.log('📡 Processing Telegram webhook...');
+      return bot.webhookCallback('/api/webhook')(req, res);
+    }
+    
+    // Обработка других API запросов через Express
+    return app(req, res);
+  } catch (error) {
+    console.error('❌ Handler error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}

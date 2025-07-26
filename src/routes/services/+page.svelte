@@ -30,15 +30,15 @@
 
     console.log('Updated services:', services);
 
-    // Уведомляем бота о выборе услуги
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      notifyBotAction('service_toggle', {
-        serviceId: service.id,
-        serviceName: service.name,
-        selected: service.selected
-      });
-    }
+    // Уведомляем бота о выборе услуги (отключено для предотвращения 404)
+    // const service = services.find(s => s.id === serviceId);
+    // if (service) {
+    //   notifyBotAction('service_toggle', {
+    //     serviceId: service.id,
+    //     serviceName: service.name,
+    //     selected: service.selected
+    //   });
+    // }
   }
 
   function handleOrderSuccess() {
@@ -70,8 +70,8 @@
   let isMainButtonShown = false;
 
   onMount(() => {
-    // Уведомляем бота об открытии страницы заказа
-    notifyBotAction('page_opened', { page: 'services' });
+    // Уведомляем бота об открытии страницы заказа (отключено для предотвращения 404)
+    // notifyBotAction('page_opened', { page: 'services' });
 
     return () => {
       // Очищаем обработчики при размонтировании
