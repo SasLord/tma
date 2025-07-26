@@ -9,6 +9,12 @@
     },
     "api/webapp-data.js": {
       "maxDuration": 10
+    },
+    "api/test-send.js": {
+      "maxDuration": 10
+    },
+    "api/set-webhook.js": {
+      "maxDuration": 10
     }
   },
   "headers": [

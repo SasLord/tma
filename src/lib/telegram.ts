@@ -82,11 +82,19 @@ export async function sendOrderToBot(services: ServiceOrder[]) {
     };
     
     console.log('📤 Sending order data through Telegram WebApp:', orderData);
+    console.log('📤 Raw JSON string:', JSON.stringify(orderData));
+    
+    // Проверяем, что sendData доступен
+    if (typeof window.Telegram.WebApp.sendData !== 'function') {
+      console.error('❌ sendData method not available');
+      throw new Error('sendData method not available');
+    }
     
     // Используем встроенный метод Telegram для отправки данных
     window.Telegram.WebApp.sendData(JSON.stringify(orderData));
     
-    console.log('✅ Order sent successfully through Telegram WebApp');
+    console.log('✅ Order sent successfully through Telegram WebApp sendData');
+    console.log('📱 WebApp should now wait for answerWebAppQuery from bot');
     return { success: true, method: 'telegram_senddata' };
     
   } catch (error) {

@@ -108,6 +108,8 @@
     <p>Selected services: {selectedServices.length}</p>
     <p>Has selections: {hasSelectedServices}</p>
     <p>Main button shown: {isMainButtonShown}</p>
+    <p>WebApp available: {typeof window !== 'undefined' && window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
+    <p>sendData available: {typeof window !== 'undefined' && window.Telegram?.WebApp?.sendData ? 'Yes' : 'No'}</p>
     <p>Services state: {JSON.stringify(services.map(s => ({id: s.id, selected: s.selected})))}</p>
     <button on:click={testBotConnection} style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
       🔍 Тест соединения с ботом
