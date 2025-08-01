@@ -1,7 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { browser } from '$app/environment'
-  import { showSendDataButton } from '$lib/telegram'
+  import {
+    showSendDataButton,
+    hideMainButton,
+    initializeTelegramSDK,
+    getTelegramCapabilities,
+    getTelegramUser,
+    showNotification,
+    setDebugCallback,
+    getPlatform
+  } from '$lib/telegram'
 
   interface Service {
     id: string
@@ -18,6 +27,24 @@
   ]
 
   let showSuccessMessage = false
+  let isMainButtonShown = false
+  let telegramCapabilities: ReturnType<typeof getTelegramCapabilities> | null = null
+  let telegramUser: ReturnType<typeof getTelegramUser> | null = null
+  let isSDKInitialized = false
+  let platformInfo = ''
+
+  // Система отладки для мобильных устройств
+  let debugMessages: { time: string; type: 'info' | 'error' | 'warn'; message: string }[] = []
+  let lastError: string | null = null
+
+  function addDebugMessage(type: 'info' | 'error' | 'warn', message: string) {
+    const timestamp = new Date().toLocaleTimeString()
+    debugMessages = [...debugMessages.slice(-9), { time: timestamp, type, message }] // Оставляем последние 10 сообщений
+
+    if (type === 'error') {
+      lastError = message
+    }
+  }
 
   $: selectedServices = services.filter((s) => s.selected)
   $: totalPrice = selectedServices.reduce((sum, service) => sum + service.price, 0)
@@ -30,24 +57,32 @@
     )
 
     console.log('Updated services:', services)
-
-    // Уведомляем бота о выборе услуги (отключено для предотвращения 404)
-    // const service = services.find(s => s.id === serviceId);
-    // if (service) {
-    //   notifyBotAction('service_toggle', {
-    //     serviceId: service.id,
-    //     serviceName: service.name,
-    //     selected: service.selected
-    //   });
-    // }
   }
 
   function handleOrderSuccess() {
+    addDebugMessage('info', 'Order success handler called')
+
     // Показываем сообщение об успехе
     showSuccessMessage = true
 
     // Очищаем выбор после успешного заказа
     services = services.map((service) => ({ ...service, selected: false }))
+
+    // Показать уведомление через SDK
+    if (isSDKInitialized) {
+      try {
+        showNotification(
+          'Заказ отправлен',
+          'Администратор свяжется с вами в ближайшее время.',
+          'success'
+        )
+        addDebugMessage('info', 'SDK notification shown')
+      } catch (error) {
+        addDebugMessage('error', `SDK notification failed: ${error}`)
+      }
+    } else {
+      addDebugMessage('warn', 'SDK not initialized, cannot show notification')
+    }
 
     // Скрываем сообщение через 5 секунд
     setTimeout(() => {
@@ -55,48 +90,51 @@
     }, 5000)
   }
 
-  // async function testBotConnection() {
-  //   try {
-  //     if (!browser) return;
+  // Инициализация при монтировании
+  onMount(async () => {
+    if (browser) {
+      // Устанавливаем callback для отладочных сообщений
+      setDebugCallback((type, message) => {
+        addDebugMessage(type, message)
+      })
 
-  //     const result = await checkBotConnection();
-  //     if (browser && window.Telegram?.WebApp) {
-  //       window.Telegram.WebApp.showPopup({
-  //         title: 'Тест соединения',
-  //         message: `Соединение с ботом: ✅ OK\nВремя: ${result.timestamp}`,
-  //         buttons: [{ type: 'ok' }]
-  //       });
-  //     }
-  //   } catch (error) {
-  //     if (!browser) return;
+      try {
+        addDebugMessage('info', 'Starting Telegram WebApp initialization...')
 
-  //     if (browser && window.Telegram?.WebApp) {
-  //       window.Telegram.WebApp.showPopup({
-  //         title: 'Тест соединения',
-  //         message: `Соединение с ботом: ❌ ОШИБКА\n${error.message}`,
-  //         buttons: [{ type: 'ok' }]
-  //       });
-  //     }
-  //   }
-  // }
+        // Инициализация SDK
+        await initializeTelegramSDK()
+        isSDKInitialized = true
+        addDebugMessage('info', 'SDK initialized successfully')
 
-  let isMainButtonShown = false
+        // Получение информации о возможностях
+        telegramCapabilities = getTelegramCapabilities()
+        telegramUser = getTelegramUser()
+        platformInfo = getPlatform()
 
-  onMount(() => {
-    // Уведомляем бота об открытии страницы заказа (отключено для предотвращения 404)
-    // notifyBotAction('page_opened', { page: 'services' });
+        addDebugMessage('info', `User: ${telegramUser?.first_name || 'Unknown'}`)
+        addDebugMessage('info', `Platform: ${platformInfo}`)
+        addDebugMessage('info', `Capabilities: ${JSON.stringify(telegramCapabilities)}`)
 
-    return () => {
-      // Очищаем обработчики при размонтировании
-      if (browser && window.Telegram?.WebApp?.MainButton) {
-        window.Telegram.WebApp.MainButton.hide()
+        console.log('📊 Telegram capabilities:', telegramCapabilities)
+        console.log('👤 Telegram user:', telegramUser)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        addDebugMessage('error', `SDK initialization failed: ${errorMessage}`)
+        console.error('❌ Failed to initialize Telegram SDK:', error)
       }
+    }
+  })
+
+  // Очистка при размонтировании
+  onDestroy(() => {
+    if (browser && isSDKInitialized) {
+      hideMainButton()
     }
   })
 
   // Реактивное обновление главной кнопки
   $: {
-    if (browser && window.Telegram?.WebApp) {
+    if (browser && isSDKInitialized) {
       console.log('=== Button state check ===')
       console.log('hasSelectedServices:', hasSelectedServices)
       console.log('selectedServices:', selectedServices)
@@ -105,6 +143,8 @@
 
       if (hasSelectedServices) {
         console.log('Should show button with services:', selectedServices)
+        addDebugMessage('info', `Showing button for ${selectedServices.length} services`)
+
         const serviceOrders = selectedServices.map((s) => ({
           id: s.id,
           name: s.name,
@@ -112,19 +152,26 @@
         }))
         console.log('Service orders mapped:', serviceOrders)
 
-        // Принудительно скрываем кнопку перед показом новой
-        if (window.Telegram.WebApp.MainButton) {
-          window.Telegram.WebApp.MainButton.hide()
+        try {
+          // Показываем кнопку с актуальными данными
+          showSendDataButton(serviceOrders, handleOrderSuccess)
+          isMainButtonShown = true
+          addDebugMessage('info', 'Main button shown successfully')
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          addDebugMessage('error', `Button show failed: ${errorMessage}`)
         }
-
-        // Показываем кнопку с актуальными данными
-        showSendDataButton(serviceOrders, handleOrderSuccess)
-        isMainButtonShown = true
       } else {
         console.log('Should hide button - no services selected')
-        if (window.Telegram.WebApp.MainButton && isMainButtonShown) {
-          window.Telegram.WebApp.MainButton.hide()
-          isMainButtonShown = false
+        if (isMainButtonShown) {
+          try {
+            hideMainButton()
+            isMainButtonShown = false
+            addDebugMessage('info', 'Main button hidden')
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            addDebugMessage('error', `Button hide failed: ${errorMessage}`)
+          }
         }
       }
     }
@@ -144,19 +191,52 @@
   <!-- Отладочная информация -->
   <div
     class="debug-info"
-    style="background: #555; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px;"
+    style="background: #555; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px; max-height: 300px; overflow-y: auto;"
   >
+    <p><strong>System Status:</strong></p>
     <p>Selected services: {selectedServices.length}</p>
     <p>Has selections: {hasSelectedServices}</p>
     <p>Main button shown: {isMainButtonShown}</p>
-    <p>WebApp available: {browser && window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
-    <p>sendData available: {browser && window.Telegram?.WebApp?.sendData ? 'Yes' : 'No'}</p>
+    <p>SDK initialized: {isSDKInitialized ? 'Yes' : 'No'}</p>
+    <p><strong>Platform:</strong> {platformInfo}</p>
+    <p><strong>User Agent:</strong> {navigator?.userAgent?.substring(0, 50) || 'Unknown'}...</p>
+
+    {#if lastError}
+      <p style="color: #ff6b6b;"><strong>Last Error:</strong> {lastError}</p>
+    {/if}
+
+    {#if telegramCapabilities}
+      <p><strong>Capabilities:</strong> {JSON.stringify(telegramCapabilities, null, 2)}</p>
+    {/if}
+
+    {#if telegramUser}
+      <p><strong>User:</strong> {telegramUser.first_name} {telegramUser.last_name || ''}</p>
+      <p><strong>User ID:</strong> {telegramUser.id}</p>
+    {/if}
+
     <p>
-      Services state: {JSON.stringify(services.map((s) => ({ id: s.id, selected: s.selected })))}
+      <strong>Services state:</strong>
+      {JSON.stringify(services.map((s) => ({ id: s.id, selected: s.selected })))}
     </p>
-    <!-- <button on:click={testBotConnection} style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
-      🔍 Тест соединения с ботом
-    </button> -->
+
+    {#if debugMessages.length > 0}
+      <div style="margin-top: 10px; border-top: 1px solid #777; padding-top: 10px;">
+        <p><strong>Debug Log:</strong></p>
+        {#each debugMessages as msg}
+          <div
+            style="margin: 2px 0; padding: 2px 5px; border-radius: 3px; 
+            background: {msg.type === 'error'
+              ? '#ff6b6b'
+              : msg.type === 'warn'
+                ? '#ffa726'
+                : '#4caf50'}; 
+            color: white; font-size: 10px;"
+          >
+            [{msg.time}] {msg.type.toUpperCase()}: {msg.message}
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <div class="services-list">

@@ -39,6 +39,7 @@
     "vite-plugin-devtools-json": "^0.2.0"
   },
   "dependencies": {
+    "@telegram-apps/sdk": "^3.11.4",
     "@telegram-apps/sdk-svelte": "^2.0.30",
     "telegraf": "^4.16.3"
   }

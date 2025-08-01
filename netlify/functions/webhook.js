@@ -59,41 +59,77 @@ exports.handler = async (event) => {
       }
     }
 
-    // === ПРОСТАЯ ОБРАБОТКА HTTP ЗАКАЗОВ ===
+    // === ОБРАБОТКА ЗАКАЗОВ ЧЕРЕЗ SDK ===
     if (requestBody.services && Array.isArray(requestBody.services)) {
-      console.log('🌐 HTTP order received')
+      console.log('🌐 Order received via Telegram SDK')
 
       const services = requestBody.services
-      const totalPrice = services.reduce((sum, s) => sum + s.price, 0)
+      const totalPrice = requestBody.totalPrice || services.reduce((sum, s) => sum + s.price, 0)
       const platform = requestBody.platform || 'HTTP'
+      const user = requestBody.user
+      const orderType = requestBody.type || 'order'
 
       // Формируем список услуг
       const servicesList = services
-        .map((service) => '• ' + service.name + ' - ' + service.price + '₽')
+        .map((service) => '• ' + service.name + ' - ' + service.price.toLocaleString() + '₽')
         .join('\n')
 
-      // Простое сообщение
+      // Информация о пользователе
+      let userInfo = ''
+      if (user) {
+        userInfo =
+          '👤 Пользователь: ' +
+          (user.first_name || 'Неизвестно') +
+          ' ' +
+          (user.last_name || '') +
+          '\n' +
+          '🆔 ID: ' +
+          (user.id || 'Неизвестно') +
+          '\n' +
+          '👤 Username: @' +
+          (user.username || 'отсутствует') +
+          '\n\n'
+      }
+
+      // Расширенное сообщение с данными SDK
       const message =
-        '🛍️ Новый заказ через WebApp!\n\n' +
+        '🛍️ Новый заказ через Telegram WebApp!\n\n' +
+        userInfo +
         '📋 Выбранные услуги:\n' +
         servicesList +
         '\n\n' +
         '💰 Общая сумма: ' +
-        totalPrice +
+        totalPrice.toLocaleString() +
         '₽\n' +
         '🌐 Платформа: ' +
         platform +
         '\n' +
+        '📱 Тип: ' +
+        orderType +
+        '\n' +
         '📅 Время: ' +
-        new Date().toLocaleString('ru-RU')
+        new Date().toLocaleString('ru-RU', {
+          timeZone: 'Europe/Moscow',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
 
       try {
         await bot.telegram.sendMessage(ADMIN_CHAT_ID, message)
-        console.log('✅ HTTP order sent to admin')
+        console.log('✅ SDK order sent to admin')
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, message: 'Order processed' })
+          body: JSON.stringify({
+            success: true,
+            message: 'Order processed via Telegram SDK',
+            orderType,
+            totalPrice,
+            servicesCount: services.length
+          })
         }
       } catch (sendError) {
         console.error('❌ Failed to send message:', sendError)
