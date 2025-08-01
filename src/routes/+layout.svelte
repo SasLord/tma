@@ -21,7 +21,7 @@
   onMount(async () => {
     // Инициализируем Telegram SDK
     await initializeTelegramSDK()
-    
+
     // Инициализируем тему
     initializeTelegramTheme()
   })

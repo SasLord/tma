@@ -7,3 +7,11 @@ bun.lockb
 
 # Miscellaneous
 static/
+
+# Shell scripts
+*.sh
+
+# Build and deployment
+build/
+dist/
+.netlify/

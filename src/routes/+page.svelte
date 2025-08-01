@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
-  import { showSendDataButton } from '$lib/telegram';
+  import { onMount } from 'svelte'
+  import { browser } from '$app/environment'
+  import { showSendDataButton } from '$lib/telegram'
 
   interface Service {
-    id: string;
-    name: string;
-    price: number;
-    selected: boolean;
+    id: string
+    name: string
+    price: number
+    selected: boolean
   }
 
   let services: Service[] = [
@@ -15,23 +15,21 @@
     { id: '2', name: 'Мытье окон', price: 1500, selected: false },
     { id: '3', name: 'Химчистка дивана', price: 2500, selected: false },
     { id: '4', name: 'Уборка после ремонта', price: 5000, selected: false }
-  ];
+  ]
 
-  let showSuccessMessage = false;
+  let showSuccessMessage = false
 
-  $: selectedServices = services.filter(s => s.selected);
-  $: totalPrice = selectedServices.reduce((sum, service) => sum + service.price, 0);
-  $: hasSelectedServices = selectedServices.length > 0;
+  $: selectedServices = services.filter((s) => s.selected)
+  $: totalPrice = selectedServices.reduce((sum, service) => sum + service.price, 0)
+  $: hasSelectedServices = selectedServices.length > 0
 
   function toggleService(serviceId: string) {
-    console.log('Toggling service:', serviceId);
-    services = services.map(service => 
-      service.id === serviceId 
-        ? { ...service, selected: !service.selected }
-        : service
-    );
+    console.log('Toggling service:', serviceId)
+    services = services.map((service) =>
+      service.id === serviceId ? { ...service, selected: !service.selected } : service
+    )
 
-    console.log('Updated services:', services);
+    console.log('Updated services:', services)
 
     // Уведомляем бота о выборе услуги (отключено для предотвращения 404)
     // const service = services.find(s => s.id === serviceId);
@@ -46,21 +44,21 @@
 
   function handleOrderSuccess() {
     // Показываем сообщение об успехе
-    showSuccessMessage = true;
-    
+    showSuccessMessage = true
+
     // Очищаем выбор после успешного заказа
-    services = services.map(service => ({ ...service, selected: false }));
-    
+    services = services.map((service) => ({ ...service, selected: false }))
+
     // Скрываем сообщение через 5 секунд
     setTimeout(() => {
-      showSuccessMessage = false;
-    }, 5000);
+      showSuccessMessage = false
+    }, 5000)
   }
 
   // async function testBotConnection() {
   //   try {
   //     if (!browser) return;
-      
+
   //     const result = await checkBotConnection();
   //     if (browser && window.Telegram?.WebApp) {
   //       window.Telegram.WebApp.showPopup({
@@ -71,7 +69,7 @@
   //     }
   //   } catch (error) {
   //     if (!browser) return;
-      
+
   //     if (browser && window.Telegram?.WebApp) {
   //       window.Telegram.WebApp.showPopup({
   //         title: 'Тест соединения',
@@ -82,7 +80,7 @@
   //   }
   // }
 
-  let isMainButtonShown = false;
+  let isMainButtonShown = false
 
   onMount(() => {
     // Уведомляем бота об открытии страницы заказа (отключено для предотвращения 404)
@@ -91,42 +89,42 @@
     return () => {
       // Очищаем обработчики при размонтировании
       if (browser && window.Telegram?.WebApp?.MainButton) {
-        window.Telegram.WebApp.MainButton.hide();
+        window.Telegram.WebApp.MainButton.hide()
       }
-    };
-  });
+    }
+  })
 
   // Реактивное обновление главной кнопки
   $: {
     if (browser && window.Telegram?.WebApp) {
-      console.log('=== Button state check ===');
-      console.log('hasSelectedServices:', hasSelectedServices);
-      console.log('selectedServices:', selectedServices);
-      console.log('selectedServices.length:', selectedServices.length);
-      console.log('isMainButtonShown:', isMainButtonShown);
-      
+      console.log('=== Button state check ===')
+      console.log('hasSelectedServices:', hasSelectedServices)
+      console.log('selectedServices:', selectedServices)
+      console.log('selectedServices.length:', selectedServices.length)
+      console.log('isMainButtonShown:', isMainButtonShown)
+
       if (hasSelectedServices) {
-        console.log('Should show button with services:', selectedServices);
-        const serviceOrders = selectedServices.map(s => ({
+        console.log('Should show button with services:', selectedServices)
+        const serviceOrders = selectedServices.map((s) => ({
           id: s.id,
           name: s.name,
           price: s.price
-        }));
-        console.log('Service orders mapped:', serviceOrders);
-        
+        }))
+        console.log('Service orders mapped:', serviceOrders)
+
         // Принудительно скрываем кнопку перед показом новой
         if (window.Telegram.WebApp.MainButton) {
-          window.Telegram.WebApp.MainButton.hide();
+          window.Telegram.WebApp.MainButton.hide()
         }
-        
+
         // Показываем кнопку с актуальными данными
-        showSendDataButton(serviceOrders, handleOrderSuccess);
-        isMainButtonShown = true;
+        showSendDataButton(serviceOrders, handleOrderSuccess)
+        isMainButtonShown = true
       } else {
-        console.log('Should hide button - no services selected');
+        console.log('Should hide button - no services selected')
         if (window.Telegram.WebApp.MainButton && isMainButtonShown) {
-          window.Telegram.WebApp.MainButton.hide();
-          isMainButtonShown = false;
+          window.Telegram.WebApp.MainButton.hide()
+          isMainButtonShown = false
         }
       }
     }
@@ -135,36 +133,41 @@
 
 <div class="services-page">
   <h1>Выберите услуги</h1>
-  
+
   <!-- Уведомление об успехе -->
   {#if showSuccessMessage}
     <div class="success-message">
       ✅ Заказ отправлен! Администратор свяжется с вами в ближайшее время.
     </div>
   {/if}
-  
+
   <!-- Отладочная информация -->
-  <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px;">
+  <div
+    class="debug-info"
+    style="background: #555; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px;"
+  >
     <p>Selected services: {selectedServices.length}</p>
     <p>Has selections: {hasSelectedServices}</p>
     <p>Main button shown: {isMainButtonShown}</p>
     <p>WebApp available: {browser && window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
     <p>sendData available: {browser && window.Telegram?.WebApp?.sendData ? 'Yes' : 'No'}</p>
-    <p>Services state: {JSON.stringify(services.map(s => ({id: s.id, selected: s.selected})))}</p>
+    <p>
+      Services state: {JSON.stringify(services.map((s) => ({ id: s.id, selected: s.selected })))}
+    </p>
     <!-- <button on:click={testBotConnection} style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
       🔍 Тест соединения с ботом
     </button> -->
   </div>
-  
+
   <div class="services-list">
     {#each services as service (service.id)}
       <label class="service-item" class:selected={service.selected}>
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           checked={service.selected}
           on:change={(e) => {
-            console.log('Checkbox changed:', service.id, e.currentTarget.checked);
-            toggleService(service.id);
+            console.log('Checkbox changed:', service.id, e.currentTarget.checked)
+            toggleService(service.id)
           }}
         />
         <div class="service-content">
@@ -181,9 +184,9 @@
       <div class="total">
         Итого: <strong>{totalPrice.toLocaleString()} ₽</strong>
       </div>
-      
+
       <div class="selected-services">
-        {#each selectedServices as service}
+        {#each selectedServices as service (service.id)}
           <div class="selected-service">
             {service.name} - {service.price.toLocaleString()} ₽
           </div>
@@ -212,7 +215,7 @@
   }
 
   .success-message {
-    background: #4CAF50;
+    background: #4caf50;
     color: white;
     padding: 15px;
     border-radius: 8px;
@@ -231,13 +234,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .service-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-bottom: 30px;
   }
 
   .service-item {
@@ -259,7 +255,7 @@
       background: var(--tg-theme-secondary-bg-color, #f5f5f5);
     }
 
-    input[type="checkbox"] {
+    input[type='checkbox'] {
       width: 20px;
       height: 20px;
       margin-right: 15px;

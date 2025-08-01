@@ -1,38 +1,100 @@
-# sv
+# 🤖 Telegram WebApp - Сервис заказа услуг
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Современное веб-приложение для Telegram, позволяющее пользователям заказывать различные услуги прямо через Telegram бота.
 
-## Creating a project
+## ✨ Возможности
 
-If you're seeing this, you've probably already done this step. Congrats!
+- 📱 Нативная интеграция с Telegram WebApp
+- 🎨 Адаптивный дизайн с поддержкой тем Telegram
+- 🚀 Быстрый деплой в одну команду
+- 🔄 Автоматическая обработка заказов через webhook
+- ✅ CORS поддержка для кроссплатформенной работы
+
+## 🚀 Быстрый старт
+
+### 1. Автоматический деплой
 
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+./deploy.sh
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### 2. Настройка после деплоя
 
 ```bash
+# Настроить webhook
+./setup-webhook.sh ВАШ_ТОКЕН_БОТА your-site.netlify.app
+
+# Протестировать деплой
+./test-deploy.sh your-site.netlify.app
+```
+
+### 3. Настроить переменные среды
+
+В Netlify Dashboard добавьте:
+
+- `BOT_TOKEN` - токен вашего Telegram бота
+
+## 📚 Документация
+
+- [📖 Подробная инструкция по деплою](DEPLOY_GUIDE.md)
+- [⚡ Быстрый старт](QUICK_START.md)
+
+## 🛠 Технологии
+
+- **Frontend**: SvelteKit 5.0, TypeScript, SCSS
+- **Backend**: Netlify Functions, Telegraf
+- **Deploy**: Netlify, автоматические скрипты
+- **API**: Telegram Bot API, WebApp API
+
+## 🏗 Разработка
+
+### Локальная разработка
+
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
+### Сборка проекта
 
 ```bash
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+### Доступные команды
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```bash
+npm run dev          # Разработка
+npm run build        # Сборка
+npm run preview      # Превью сборки
+npm run deploy       # Полный деплой
+npm run deploy:check # Проверка системы
+npm run deploy:build # Только сборка
+npm run deploy:test  # Тестирование
+```
+
+## 📁 Структура проекта
+
+```
+tma/
+├── deploy.sh              # 🚀 Автоматический деплой
+├── setup-webhook.sh       # 🔗 Настройка webhook
+├── test-deploy.sh         # 🧪 Тестирование
+├── netlify/
+│   └── functions/
+│       └── webhook.js     # 📡 Обработка заказов
+├── src/
+│   ├── routes/
+│   │   └── +page.svelte   # 📱 Главная страница
+│   └── lib/
+│       └── telegram.ts    # 🤖 Telegram утилиты
+└── static/                # 📄 Статические файлы
+```
+
+## 🤝 Поддержка
+
+Если возникли проблемы:
+
+1. Проверьте [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md)
+2. Запустите `./deploy.sh check`
+3. Проверьте логи: `netlify logs:functions`

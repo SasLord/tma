@@ -3,19 +3,19 @@
  */
 
 export interface TelegramThemeParams {
-  bg_color?: string;
-  text_color?: string;
-  hint_color?: string;
-  link_color?: string;
-  button_color?: string;
-  button_text_color?: string;
-  secondary_bg_color?: string;
-  header_bg_color?: string;
-  accent_text_color?: string;
-  section_bg_color?: string;
-  section_header_text_color?: string;
-  subtitle_text_color?: string;
-  destructive_text_color?: string;
+  bg_color?: string
+  text_color?: string
+  hint_color?: string
+  link_color?: string
+  button_color?: string
+  button_text_color?: string
+  secondary_bg_color?: string
+  header_bg_color?: string
+  accent_text_color?: string
+  section_bg_color?: string
+  section_header_text_color?: string
+  subtitle_text_color?: string
+  destructive_text_color?: string
 }
 
 /**
@@ -23,11 +23,11 @@ export interface TelegramThemeParams {
  */
 export const setCSSThemeVariables = (themeParams: Record<string, string>) => {
   const root = document.documentElement
-  
+
   Object.entries(themeParams).forEach(([key, value]) => {
     root.style.setProperty(`--tg-theme-${key.replace(/_/g, '-')}`, value)
   })
-  
+
   console.log('CSS переменные темы установлены:', Object.keys(themeParams).length)
 }
 
@@ -51,11 +51,11 @@ export const setFallbackTheme = () => {
     'subtitle-text-color': '#999999',
     'destructive-text-color': '#ff3b30'
   }
-  
+
   Object.entries(fallbackTheme).forEach(([key, value]) => {
     root.style.setProperty(`--tg-theme-${key}`, value)
   })
-  
+
   console.log('Установлена fallback тема')
 }
 
@@ -67,14 +67,14 @@ export const getThemeFromURL = (): Record<string, string> | null => {
     const hash = window.location.hash.slice(1)
     const params = new URLSearchParams(hash)
     const stylesParam = params.get('tgWebAppThemeParams')
-    
+
     if (stylesParam) {
       return JSON.parse(decodeURIComponent(stylesParam))
     }
   } catch (error) {
     console.error('Ошибка парсинга theme params из URL:', error)
   }
-  
+
   return null
 }
 
@@ -89,7 +89,7 @@ export const getThemeFromWebApp = (): Record<string, string> | null => {
   } catch (error) {
     console.error('Ошибка получения theme params из WebApp API:', error)
   }
-  
+
   return null
 }
 
@@ -104,7 +104,7 @@ export const initializeTelegramTheme = () => {
     setCSSThemeVariables(themeParams)
     return
   }
-  
+
   // Затем пробуем получить из WebApp API
   themeParams = getThemeFromWebApp()
   if (themeParams) {
@@ -112,7 +112,7 @@ export const initializeTelegramTheme = () => {
     setCSSThemeVariables(themeParams)
     return
   }
-  
+
   // Если ничего не найдено, устанавливаем fallback тему
   console.log('Theme params не найдены, используем fallback тему')
   setFallbackTheme()
