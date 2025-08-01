@@ -16,8 +16,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
-		"@sveltejs/adapter-node": "^5.2.12",
-		"@sveltejs/adapter-vercel": "^5.6.3",
+		"@sveltejs/adapter-netlify": "^5.1.0",
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"eslint": "^9.18.0",
@@ -35,6 +34,7 @@
 		"vite-plugin-devtools-json": "^0.2.0"
 	},
 	"dependencies": {
-		"@telegram-apps/sdk-svelte": "^2.0.30"
+		"@telegram-apps/sdk-svelte": "^2.0.30",
+		"telegraf": "^4.16.3"
 	}
 }

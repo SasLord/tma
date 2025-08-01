@@ -1,19 +1,9 @@
 {
-  "alias": "bot-blue-five.vercel.app",
   "functions": {
-    "api/bot.js": {
-      "maxDuration": 10
-    },
     "api/webhook.js": {
       "maxDuration": 10
     },
-    "api/webapp-data.js": {
-      "maxDuration": 10
-    },
-    "api/test-send.js": {
-      "maxDuration": 10
-    },
-    "api/set-webhook.js": {
+    "api/bot.js": {
       "maxDuration": 10
     }
   },

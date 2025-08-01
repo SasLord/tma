@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         reply_markup: {
           inline_keyboard: [[{
             text: '🛍️ Открыть магазин',
-            web_app: { url: 'https://bot-blue-five.vercel.app' }
+            web_app: { url: 'https://tma-webapp-store.netlify.app' }
           }]]
         }
       });

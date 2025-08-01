@@ -3,7 +3,18 @@ import { Telegraf } from 'telegraf';
 export default async function handler(req, res) {
   console.log('🔗 Webhook handler called');
   console.log('Method:', req.method);
-  console.log('URL:', req.url);
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  
+  // CORS заголовки для всех запросов
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Обрабатываем preflight запросы
+  if (req.method === 'OPTIONS') {
+    console.log('✅ CORS preflight request');
+    return res.status(200).end();
+  }
   
   if (req.method !== 'POST') {
     console.log('❌ Invalid method:', req.method);
@@ -11,8 +22,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('📨 Processing webhook update:', JSON.stringify(req.body, null, 2));
-    
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     
     if (!BOT_TOKEN) {
@@ -21,83 +30,116 @@ export default async function handler(req, res) {
     }
 
     const bot = new Telegraf(BOT_TOKEN);
+    const ADMIN_CHAT_ID = '1155907659';
     
-    // Обработчик для web_app_data событий
-    bot.on('web_app_data', async (ctx) => {
-      console.log('🌐 WebApp data event received:', ctx.update);
-      console.log('📱 WebApp data:', ctx.webAppData);
+    // === ПРОСТАЯ ОБРАБОТКА HTTP ЗАКАЗОВ ===
+    if (req.body.services && Array.isArray(req.body.services)) {
+      console.log('🌐 HTTP order received');
+      
+      const services = req.body.services;
+      const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
+      const platform = req.body.platform || 'HTTP';
+      
+      // Формируем список услуг
+      const servicesList = services.map(service => 
+        '• ' + service.name + ' - ' + service.price + '₽'
+      ).join('\n');
+
+      // Простое сообщение
+      const message = '🛍️ Новый заказ через WebApp!\n\n' +
+        '📋 Выбранные услуги:\n' + servicesList + '\n\n' +
+        '💰 Общая сумма: ' + totalPrice + '₽\n' +
+        '🌐 Платформа: ' + platform + '\n' +
+        '📅 Время: ' + new Date().toLocaleString('ru-RU');
+
+      try {
+        await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
+        console.log('✅ HTTP order sent to admin');
+        return res.status(200).json({ success: true, message: 'Order processed' });
+      } catch (sendError) {
+        console.error('❌ Failed to send message:', sendError);
+        return res.status(500).json({ error: 'Failed to send message', details: sendError.message });
+      }
+    }
+    
+    // === ОБРАБОТКА TELEGRAM WEB_APP_DATA ===
+    const webAppData = req.body.message?.web_app_data || req.body.web_app_data;
+    
+    if (webAppData && webAppData.data) {
+      console.log('📱 Telegram WebApp data received');
       
       try {
-        const webAppData = JSON.parse(ctx.webAppData.data);
-        console.log('📋 Parsed order data:', webAppData);
+        const parsedData = JSON.parse(webAppData.data);
+        const user = req.body.message?.from || req.body.from;
         
-        // Формируем сообщение о заказе
-        const servicesList = webAppData.services.map(service => 
-          `• ${service.name} - ${service.price}₽`
-        ).join('\n');
+        // Список услуг для маппинга ID
+        const availableServices = [
+          { id: '1', name: 'Уборка квартиры', price: 3000 },
+          { id: '2', name: 'Мытье окон', price: 1500 },
+          { id: '3', name: 'Химчистка дивана', price: 2500 },
+          { id: '4', name: 'Уборка после ремонта', price: 5000 }
+        ];
         
-        const message = `🛍️ Новый заказ через WebApp!
-
-📋 Выбранные услуги:
-${servicesList}
-
-💰 Общая сумма: ${webAppData.total}₽
-
-👤 От пользователя: ${ctx.from.first_name} ${ctx.from.last_name || ''}
-📅 Время заказа: ${new Date().toLocaleString('ru-RU')}`;
-
-        // Отправляем сообщение администратору
-        const ADMIN_CHAT_ID = '1155907659';
-        console.log('📤 Sending order to admin:', ADMIN_CHAT_ID);
+        let services = [];
+        let totalPrice = 0;
         
-        await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
-        
-        // Отвечаем пользователю через answerWebAppQuery
-        if (ctx.webAppData.query_id) {
-          console.log('📲 Answering WebApp query:', ctx.webAppData.query_id);
-          await bot.telegram.answerWebAppQuery(ctx.webAppData.query_id, {
-            type: 'article',
-            id: 'order_success',
-            title: 'Заказ принят!',
-            input_message_content: {
-              message_text: `✅ Ваш заказ принят!\n\nСумма: ${webAppData.total}₽\nВремя: ${new Date().toLocaleString('ru-RU')}`
-            }
-          });
-        } else {
-          console.log('⚠️ No query_id in web_app_data, skipping answerWebAppQuery');
+        // Обрабатываем данные
+        if (parsedData.serviceIds && Array.isArray(parsedData.serviceIds)) {
+          services = parsedData.serviceIds.map(id => 
+            availableServices.find(s => s.id === id)
+          ).filter(Boolean);
+          totalPrice = parsedData.totalPrice || services.reduce((sum, s) => sum + s.price, 0);
+        } else if (parsedData.services && Array.isArray(parsedData.services)) {
+          services = parsedData.services;
+          totalPrice = parsedData.total || services.reduce((sum, s) => sum + s.price, 0);
         }
         
-        console.log('✅ WebApp order processed successfully via event handler');
-      } catch (error) {
-        console.error('❌ Error processing web_app_data event:', error);
-        
-        // Отвечаем об ошибке
-        if (ctx.webAppData.query_id) {
-          await bot.telegram.answerWebAppQuery(ctx.webAppData.query_id, {
-            type: 'article',
-            id: 'order_error',
-            title: 'Ошибка обработки заказа',
-            input_message_content: {
-              message_text: `❌ Произошла ошибка при обработке заказа. Попробуйте еще раз.`
+        if (services.length > 0) {
+          const servicesList = services.map(service => 
+            '• ' + service.name + ' - ' + service.price + '₽'
+          ).join('\n');
+          
+          const userName = user ? (user.first_name || '') + ' ' + (user.last_name || '') : 'Неизвестно';
+
+          const message = '🛍️ Новый заказ через WebApp!\n\n' +
+            '📋 Выбранные услуги:\n' + servicesList + '\n\n' +
+            '💰 Общая сумма: ' + totalPrice + '₽\n' +
+            '👤 От пользователя: ' + userName.trim() + '\n' +
+            '🌐 Платформа: Telegram WebApp\n' +
+            '📅 Время: ' + new Date().toLocaleString('ru-RU');
+
+          await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
+          console.log('✅ Telegram WebApp order sent to admin');
+          
+          // Отвечаем через answerWebAppQuery если есть query_id
+          if (webAppData.query_id) {
+            try {
+              await bot.telegram.answerWebAppQuery(webAppData.query_id, {
+                type: 'article',
+                id: 'success',
+                title: 'Заказ принят!',
+                input_message_content: {
+                  message_text: '✅ Заказ принят!\nСумма: ' + totalPrice + '₽'
+                }
+              });
+            } catch (err) {
+              console.log('⚠️ answerWebAppQuery failed:', err.message);
             }
-          });
+          }
         }
+      } catch (parseError) {
+        console.error('❌ Failed to parse WebApp data:', parseError);
       }
-    });
+    }
     
-    // Обрабатываем команды
+    // === ОБРАБОТКА КОМАНД ===
     bot.command('webapp', async (ctx) => {
       console.log('📱 WebApp command triggered');
-      
-      const message = `🛍️ Добро пожаловать в наш магазин услуг!
-      
-Нажмите кнопку ниже, чтобы открыть WebApp и оформить заказ:`;
-
-      await ctx.reply(message, {
+      await ctx.reply('🛍️ Добро пожаловать в наш магазин услуг!\n\nНажмите кнопку ниже, чтобы открыть WebApp и оформить заказ:', {
         reply_markup: {
           inline_keyboard: [[{
             text: '🛍️ Открыть магазин',
-            web_app: { url: 'https://bot-blue-five.vercel.app' }
+            web_app: { url: 'https://tma-webapp-store.netlify.app' }
           }]]
         }
       });
@@ -107,87 +149,13 @@ ${servicesList}
       console.log('🧪 Test command triggered');
       await ctx.reply('✅ Бот работает! Используйте /webapp для открытия магазина.');
     });
-    
-    // Проверяем, есть ли web_app_data в обновлении
-    const webAppDataSource = req.body.message?.web_app_data || req.body.web_app_data;
-    
-    if (webAppDataSource) {
-      console.log('📱 Found web_app_data:', webAppDataSource);
-      
-      try {
-        const webAppData = JSON.parse(webAppDataSource.data);
-        console.log('📋 Parsed order data:', webAppData);
-        
-        // Получаем данные пользователя из разных источников
-        const user = req.body.message?.from || req.body.from;
-        
-        // Формируем сообщение о заказе
-        const servicesList = webAppData.services.map(service => 
-          `• ${service.name} - ${service.price}₽`
-        ).join('\n');
-        
-        const message = `🛍️ Новый заказ через WebApp!
 
-📋 Выбранные услуги:
-${servicesList}
-
-💰 Общая сумма: ${webAppData.total}₽
-
-👤 От пользователя: ${user?.first_name || 'Неизвестно'} ${user?.last_name || ''}
-📅 Время заказа: ${new Date().toLocaleString('ru-RU')}`;
-
-        // Отправляем сообщение администратору
-        const ADMIN_CHAT_ID = '1155907659';
-        console.log('📤 Sending order to admin:', ADMIN_CHAT_ID);
-        
-        await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
-        
-        // Отвечаем пользователю через answerWebAppQuery
-        if (webAppDataSource.query_id) {
-          console.log('📲 Answering WebApp query:', webAppDataSource.query_id);
-          await bot.telegram.answerWebAppQuery(webAppDataSource.query_id, {
-            type: 'article',
-            id: 'order_success',
-            title: 'Заказ принят!',
-            input_message_content: {
-              message_text: `✅ Ваш заказ принят!\n\nСумма: ${webAppData.total}₽\nВремя: ${new Date().toLocaleString('ru-RU')}`
-            }
-          });
-        } else {
-          console.log('⚠️ No query_id in web_app_data, skipping answerWebAppQuery');
-        }
-        
-        console.log('✅ WebApp order processed successfully');
-      } catch (error) {
-        console.error('❌ Error processing web_app_data:', error);
-        
-        // Отвечаем об ошибке
-        if (webAppDataSource.query_id) {
-          await bot.telegram.answerWebAppQuery(webAppDataSource.query_id, {
-            type: 'article',
-            id: 'order_error',
-            title: 'Ошибка обработки заказа',
-            input_message_content: {
-              message_text: `❌ Произошла ошибка при обработке заказа. Попробуйте еще раз.`
-            }
-          });
-        }
-      }
-    } else {
-      console.log('ℹ️ No web_app_data found in update');
-    }
-    
-    // Также настраиваем обработчик через Telegraf для других случаев
-    bot.on('web_app_data', async (ctx) => {
-      console.log('📱 Telegraf web_app_data handler triggered:', ctx.webAppData);
-      // Этот обработчик может не вызваться в serverless среде
-    });
-    
-    // Передаем обновление боту
+    // Обрабатываем обновление через Telegraf
     await bot.handleUpdate(req.body);
     
     console.log('✅ Webhook processed successfully');
     res.status(200).json({ ok: true });
+    
   } catch (error) {
     console.error('❌ Webhook error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });

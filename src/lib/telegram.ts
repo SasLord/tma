@@ -8,246 +8,141 @@ interface ServiceOrder {
 }
 
 /**
- * Проверяет связь с ботом через Telegram WebApp API
+ * Определяет платформу
  */
-export async function checkBotConnection() {
-  try {
-    console.log('🔍 Checking bot connection through Telegram WebApp...');
-    
-    if (!window.Telegram?.WebApp) {
-      throw new Error('Telegram WebApp not available');
-    }
-
-    // Проверяем наличие инициализационных данных
-    if (window.Telegram.WebApp.initData) {
-      console.log('✅ Telegram WebApp has initData');
-      return { 
-        status: 'ok', 
-        method: 'telegram_webapp', 
-        hasInitData: true,
-        timestamp: new Date().toISOString(),
-        telegram: 'WebApp connection ready'
-      };
-    } else {
-      console.log('⚠️ Telegram WebApp available but no initData');
-      return { 
-        status: 'ok', 
-        method: 'telegram_webapp', 
-        hasInitData: false,
-        timestamp: new Date().toISOString(),
-        telegram: 'WebApp available but no initData'
-      };
-    }
-  } catch (error) {
-    console.error('❌ Bot connection failed:', error);
-    // Fallback: попробуем прямое соединение
-    try {
-      const response = await fetch('https://bot-blue-five.vercel.app/api/cors-test', {
-        method: 'GET',
-        mode: 'cors'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ Direct connection OK:', result);
-      return result;
-    } catch (fetchError) {
-      console.error('❌ Direct connection also failed:', fetchError);
-      throw error;
-    }
-  }
-}
-
-/**
- * Отправляет данные о заказе в бот используя встроенный API Telegram
- */
-export async function sendOrderToBot(services: ServiceOrder[]) {
-  console.log('🚀 sendOrderToBot called with services:', services);
+function getPlatform(): string {
+  if (typeof window === 'undefined') return 'server';
   
-  // Проверяем доступность Telegram WebApp
-  if (!window.Telegram?.WebApp) {
-    console.error('❌ Telegram WebApp не доступен');
-    throw new Error('Telegram WebApp не доступен');
-  }
-
-  try {
-    // Формируем данные для отправки
-    const orderData = {
-      services: services,
-      total: services.reduce((sum, service) => sum + service.price, 0),
-      timestamp: Date.now()
-    };
-    
-    console.log('📤 Sending order data through Telegram WebApp:', orderData);
-    console.log('📤 Raw JSON string:', JSON.stringify(orderData));
-    
-    // Проверяем, что sendData доступен
-    if (typeof window.Telegram.WebApp.sendData !== 'function') {
-      console.error('❌ sendData method not available');
-      throw new Error('sendData method not available');
-    }
-    
-    // Используем встроенный метод Telegram для отправки данных
-    window.Telegram.WebApp.sendData(JSON.stringify(orderData));
-    
-    console.log('✅ Order sent successfully through Telegram WebApp sendData');
-    console.log('📱 WebApp should now wait for answerWebAppQuery from bot');
-    return { success: true, method: 'telegram_senddata' };
-    
-  } catch (error) {
-    console.error('❌ Error in sendOrderToBot:', error);
-    
-    // Fallback: попробуем прямой HTTP запрос
-    console.log('🔄 Trying fallback HTTP request...');
-    return await sendOrderViaHTTP(services);
+  const userAgent = window.navigator.userAgent;
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isTelegram = window.Telegram?.WebApp ? true : false;
+  
+  if (isTelegram && isMobile) {
+    return 'telegram_mobile';
+  } else if (isTelegram) {
+    return 'telegram_desktop';
+  } else if (isMobile) {
+    return 'mobile_browser';
+  } else {
+    return 'desktop_browser';
   }
 }
 
 /**
- * Fallback метод для отправки через HTTP (для тестирования)
+ * Отправляет заказ через HTTP API - ПРОСТОЙ МЕТОД
  */
 async function sendOrderViaHTTP(services: ServiceOrder[]) {
-  // Для тестирования вне Telegram создаем фиктивные данные
-  let initData = '';
-  if (window.Telegram?.WebApp?.initData) {
-    initData = window.Telegram.WebApp.initData;
-    console.log('📱 Telegram initData available:', initData);
-  } else {
-    console.warn('⚠️ No Telegram initData, using mock data for testing');
-    // Фиктивные данные для тестирования
-    const mockUser = {
-      id: 123456789,
-      first_name: 'Test',
-      last_name: 'User',
-      username: 'testuser',
-      language_code: 'en'
-    };
-    
-    // Создаем фиктивные initData
-    const mockParams = new URLSearchParams();
-    mockParams.set('user', JSON.stringify(mockUser));
-    mockParams.set('auth_date', Math.floor(Date.now() / 1000).toString());
-    mockParams.set('hash', 'mock_hash_for_testing');
-    initData = mockParams.toString();
+  console.log('🌐 Sending order via HTTP...');
+  console.log('Services:', services);
+  
+  const webhookUrl = 'https://tma-webapp-store.netlify.app/.netlify/functions/webhook';
+  
+  const payload = {
+    services: services,
+    platform: getPlatform(),
+    timestamp: Date.now()
+  };
+  
+  console.log('Payload:', payload);
+  
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
   }
+  
+  const result = await response.json();
+  console.log('✅ HTTP order sent:', result);
+  return result;
+}
 
+/**
+ * ПРОСТАЯ отправка заказа - только HTTP
+ */
+export async function sendOrderToBot(services: ServiceOrder[], onSuccess?: () => void): Promise<void> {
+  console.log('=== SENDING ORDER ===');
+  console.log('Services count:', services.length);
+  console.log('Services data:', services);
+  
   try {
-    const requestData = {
-      initData: initData,
-      services: services,
-    };
+    // Только HTTP - максимально просто
+    await sendOrderViaHTTP(services);
+    console.log('✅ Order sent successfully!');
     
-    console.log('📤 Sending HTTP fallback request to bot:', requestData);
-    
-    const response = await fetch('https://bot-blue-five.vercel.app/api/webapp-data', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestData),
-    });
-
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Response not ok:', errorText);
-      throw new Error(`Ошибка отправки: ${response.status} - ${errorText}`);
+    if (onSuccess) {
+      onSuccess();
     }
-
-    const result = await response.json();
-    console.log('✅ HTTP fallback success:', result);
-    return result;
   } catch (error) {
-    console.error('❌ Error in HTTP fallback:', error);
+    console.error('❌ Failed to send order:', error);
     throw error;
   }
 }
 
 /**
- * Показывает кнопку "Отправить данные" в Telegram
+ * Устанавливает обработчик главной кнопки Telegram WebApp
  */
-export function showSendDataButton(selectedServices: ServiceOrder[], onSuccess?: () => void) {
-  if (!window.Telegram?.WebApp) {
-    console.warn('Telegram WebApp недоступен');
+export function showSendDataButton(services: ServiceOrder[], onSuccess?: () => void) {
+  console.log('=== showSendDataButton called ===');
+  console.log('Services received:', services);
+  console.log('Services count:', services.length);
+  
+  if (!window.Telegram?.WebApp?.MainButton) {
+    console.error('Telegram WebApp MainButton not available');
     return;
   }
 
-  console.log('Setting up main button with services:', selectedServices);
-
-  // Показываем главную кнопку
-  window.Telegram.WebApp.MainButton.setText('Отправить заказ');
-  window.Telegram.WebApp.MainButton.show();
-
-  // Очищаем предыдущие обработчики
-  window.Telegram.WebApp.MainButton.offClick(() => {});
-
-  // Обработчик нажатия
-  window.Telegram.WebApp.MainButton.onClick(() => {
-    console.log('Main button clicked, sending order:', selectedServices);
-    
-    sendOrderToBot(selectedServices)
-      .then((result) => {
-        console.log('✅ Order sent successfully:', result);
-        
-        // Если использовался метод sendData, то ответ придет через answerWebAppQuery
-        // и WebApp автоматически закроется или покажет результат
-        if (result.method === 'telegram_senddata') {
-          console.log('📱 Order sent via Telegram WebApp, waiting for bot response...');
-          // Не показываем popup, так как бот сам ответит через answerWebAppQuery
-          if (onSuccess) onSuccess();
-        } else {
-          // Fallback HTTP метод
-          window.Telegram.WebApp.showPopup({
-            title: 'Успех!',
-            message: 'Ваш заказ был отправлен',
-            buttons: [{ type: 'ok' }]
-          });
-          
-          if (onSuccess) onSuccess();
-          
-          // Закрываем WebApp после успешной отправки
-          setTimeout(() => {
-            window.Telegram.WebApp.close();
-          }, 1500);
-        }
-      })
-      .catch((error) => {
-        console.error('❌ Failed to send order:', error);
-        window.Telegram.WebApp.showPopup({
-          title: 'Ошибка',
-          message: 'Не удалось отправить заказ. Попробуйте еще раз.',
-          buttons: [{ type: 'ok' }]
-        });
-      });
-  });
+  const mainButton = window.Telegram.WebApp.MainButton;
+  
+  // Устанавливаем текст кнопки
+  const totalPrice = services.reduce((sum, service) => sum + service.price, 0);
+  const buttonText = `Заказать за ${totalPrice}₽`;
+  console.log('Setting button text:', buttonText);
+  mainButton.setText(buttonText);
+  
+  // Удаляем предыдущие обработчики
+  try {
+    mainButton.offClick(() => {});
+  } catch {
+    console.log('No previous handlers to remove');
+  }
+  
+  // Создаем новый обработчик
+  const clickHandler = async () => {
+    try {
+      console.log('=== Main button clicked ===');
+      console.log('Services in handler:', services);
+      
+      mainButton.showProgress();
+      
+      await sendOrderToBot(services, onSuccess);
+      
+      console.log('Order sent successfully!');
+      mainButton.hideProgress();
+      mainButton.hide();
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+    } catch (error) {
+      console.error('Failed to send order:', error);
+      mainButton.hideProgress();
+    }
+  };
+  
+  // Устанавливаем новый обработчик
+  mainButton.onClick(clickHandler);
+  mainButton.show();
+  
+  console.log('=== Main button configured ===');
 }
 
 /**
- * Уведомляет бота о действии пользователя
+ * Экспорт типов
  */
-export async function notifyBotAction(action: string, data?: unknown) {
-  if (!window.Telegram?.WebApp?.initData) {
-    return;
-  }
-
-  try {
-    await fetch('/api/bot/user-action', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        initData: window.Telegram.WebApp.initData,
-        action,
-        data
-      }),
-    });
-  } catch (error) {
-    console.error('Ошибка уведомления бота:', error);
-  }
-}
+export type { ServiceOrder };

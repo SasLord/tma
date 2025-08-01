@@ -1,310 +1,351 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import { checkHomeScreenStatus, postEvent } from '@telegram-apps/sdk-svelte'
+  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { showSendDataButton } from '$lib/telegram';
 
-  let consEl: HTMLDivElement
-  let testEl: HTMLDivElement
-
-  const addToConsole = (message: string) => {
-    const p = document.createElement('p')
-    p.innerText = message
-    consEl.appendChild(p)
-    console.log(message)
+  interface Service {
+    id: string;
+    name: string;
+    price: number;
+    selected: boolean;
   }
 
-  const showSimpleInstructions = () => {
-    try {
-      if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showAlert === 'function') {
-        const webApp = window.Telegram.WebApp as any
-        webApp.showAlert('В Telegram Desktop:\n1. Откройте меню приложения\n2. Нажмите "Установить"\n\nВ Telegram Mobile:\n1. Откройте меню чата с ботом\n2. Найдите пункт "Добавить на главный экран"\n\nЕсли пункта нет - функция недоступна для этого бота.')
-        addToConsole('📖 Показан простой alert с правильными инструкциями')
-      } else {
-        addToConsole('📱 Простые инструкции: В Desktop - меню → "Установить", в Mobile - меню чата с ботом')
-      }
-    } catch (error) {
-      addToConsole('❌ Ошибка простых инструкций: ' + error)
-    }
+  let services: Service[] = [
+    { id: '1', name: 'Уборка квартиры', price: 3000, selected: false },
+    { id: '2', name: 'Мытье окон', price: 1500, selected: false },
+    { id: '3', name: 'Химчистка дивана', price: 2500, selected: false },
+    { id: '4', name: 'Уборка после ремонта', price: 5000, selected: false }
+  ];
+
+  let showSuccessMessage = false;
+
+  $: selectedServices = services.filter(s => s.selected);
+  $: totalPrice = selectedServices.reduce((sum, service) => sum + service.price, 0);
+  $: hasSelectedServices = selectedServices.length > 0;
+
+  function toggleService(serviceId: string) {
+    console.log('Toggling service:', serviceId);
+    services = services.map(service => 
+      service.id === serviceId 
+        ? { ...service, selected: !service.selected }
+        : service
+    );
+
+    console.log('Updated services:', services);
+
+    // Уведомляем бота о выборе услуги (отключено для предотвращения 404)
+    // const service = services.find(s => s.id === serviceId);
+    // if (service) {
+    //   notifyBotAction('service_toggle', {
+    //     serviceId: service.id,
+    //     serviceName: service.name,
+    //     selected: service.selected
+    //   });
+    // }
   }
 
-  const showInstructions = () => {
-    try {
-      if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showPopup === 'function') {
-        const webApp = window.Telegram.WebApp as any
-        
-        // Правильный формат для Telegram WebApp popup
-        webApp.showPopup({
-          title: 'Добавить на главный экран',
-          message: 'Telegram Desktop:\n1. Меню приложения → "Установить"\n\nTelegram Mobile:\n1. Откройте профиль бота\n2. Меню → "Добавить на главный экран"\n\nЕсли пункт отсутствует:\n- Обновите Telegram\n- Функция может быть недоступна для этого бота\n- Попробуйте в другом клиенте Telegram',
-          buttons: [{
-            id: 'ok',
-            type: 'ok',
-            text: 'Понятно'
-          }]
-        }, (buttonId: string) => {
-          addToConsole('Пользователь нажал кнопку: ' + buttonId)
-        })
-        addToConsole('📖 Показаны подробные инструкции')
-      } else {
-        addToConsole('❌ showPopup недоступен')
-        
-        // Альтернативный способ - через alert
-        if (window.Telegram?.WebApp && typeof window.Telegram.WebApp.showAlert === 'function') {
-          const webApp = window.Telegram.WebApp as any
-          webApp.showAlert('Для добавления на главный экран:\n\n1. Нажмите меню ⋮\n2. Выберите "Добавить на главный экран"\n\nИли используйте кнопку "Поделиться"')
-          addToConsole('📖 Показан alert с инструкциями')
-        } else {
-          addToConsole('📱 Инструкции: Используйте меню Telegram (⋮) → "Добавить на главный экран"')
-        }
-      }
-    } catch (error) {
-      addToConsole('❌ Ошибка показа инструкций: ' + error)
-      
-      // Fallback - показываем через обычный alert браузера
-      try {
-        alert('Для добавления на главный экран:\n\n1. Нажмите меню ⋮ в правом верхнем углу\n2. Выберите "Добавить на главный экран"')
-        addToConsole('📖 Показан browser alert')
-      } catch (alertError) {
-        addToConsole('❌ Даже browser alert не работает: ' + alertError)
-      }
-    }
-  }
-
-  const checkAddToHomeScreenRequirements = () => {
-    addToConsole('🔍 ПРОВЕРКА ТРЕБОВАНИЙ ДЛЯ addToHomeScreen:')
+  function handleOrderSuccess() {
+    // Показываем сообщение об успехе
+    showSuccessMessage = true;
     
-    try {
-      if (!window.Telegram?.WebApp) {
-        addToConsole('❌ Telegram WebApp API недоступно')
-        return false
-      }
-      
-      const webApp = window.Telegram.WebApp as any
-      
-      // 1. Проверка версии
-      const version = webApp.version || '0.0'
-      const versionParts = version.split('.')
-      const major = parseInt(versionParts[0]) || 0
-      const minor = parseInt(versionParts[1]) || 0
-      const hasRequiredVersion = major > 7 || (major === 7 && minor >= 10)
-      addToConsole('1. Версия ' + version + ': ' + (hasRequiredVersion ? '✅' : '❌ Нужна 7.10+'))
-      
-      // 2. Проверка платформы
-      const platform = webApp.platform || 'unknown'
-      const isMobile = platform === 'android' || platform === 'ios'
-      const isDesktop = platform === 'macos' || platform === 'windows' || platform === 'linux'
-      addToConsole('2. Платформа ' + platform + ': ' + (isMobile || isDesktop ? '✅' : '❓'))
-      
-      // 3. Проверка развёрнутости приложения
-      const isExpanded = webApp.isExpanded
-      addToConsole('3. Приложение развёрнуто: ' + (isExpanded ? '✅' : '❌'))
-      
-      // 4. Проверка наличия функции
-      const hasFunction = typeof webApp.addToHomeScreen === 'function'
-      addToConsole('4. Функция существует: ' + (hasFunction ? '✅' : '❌'))
-      
-      // 5. Проверка URL параметров
-      const hasStartParam = window.location.href.includes('tgWebAppStartParam')
-      addToConsole('5. StartParam в URL: ' + (hasStartParam ? '✅' : '❓ Не обязательно'))
-      
-      // 6. Проверка initData
-      const hasInitData = !!webApp.initData
-      addToConsole('6. InitData присутствует: ' + (hasInitData ? '✅' : '❌'))
-      
-      const allRequirementsMet = hasRequiredVersion && (isMobile || isDesktop) && hasFunction && hasInitData
-      addToConsole('🎯 ИТОГОВАЯ ОЦЕНКА: ' + (allRequirementsMet ? '✅ Должно работать' : '❌ Требования не выполнены'))
-      
-      if (!allRequirementsMet) {
-        addToConsole('💡 ВОЗМОЖНЫЕ ПРИЧИНЫ:')
-        if (!hasRequiredVersion) addToConsole('  - Обновите Telegram до последней версии')
-        if (!hasFunction) addToConsole('  - Функция не поддерживается в данной версии/платформе')
-        if (!hasInitData) addToConsole('  - Приложение запущено не через бота')
-        if (!isExpanded) addToConsole('  - Попробуйте развернуть приложение на полный экран')
-      }
-      
-      return allRequirementsMet
-      
-    } catch (error) {
-      addToConsole('❌ Ошибка проверки требований: ' + error)
-      return false
-    }
+    // Очищаем выбор после успешного заказа
+    services = services.map(service => ({ ...service, selected: false }));
+    
+    // Скрываем сообщение через 5 секунд
+    setTimeout(() => {
+      showSuccessMessage = false;
+    }, 5000);
   }
+
+  // async function testBotConnection() {
+  //   try {
+  //     if (!browser) return;
+      
+  //     const result = await checkBotConnection();
+  //     if (browser && window.Telegram?.WebApp) {
+  //       window.Telegram.WebApp.showPopup({
+  //         title: 'Тест соединения',
+  //         message: `Соединение с ботом: ✅ OK\nВремя: ${result.timestamp}`,
+  //         buttons: [{ type: 'ok' }]
+  //       });
+  //     }
+  //   } catch (error) {
+  //     if (!browser) return;
+      
+  //     if (browser && window.Telegram?.WebApp) {
+  //       window.Telegram.WebApp.showPopup({
+  //         title: 'Тест соединения',
+  //         message: `Соединение с ботом: ❌ ОШИБКА\n${error.message}`,
+  //         buttons: [{ type: 'ok' }]
+  //       });
+  //     }
+  //   }
+  // }
+
+  let isMainButtonShown = false;
 
   onMount(() => {
-    const hash = window.location.hash.slice(1)
-    addToConsole('Hash: ' + hash)
+    // Уведомляем бота об открытии страницы заказа (отключено для предотвращения 404)
+    // notifyBotAction('page_opened', { page: 'services' });
 
-    const params = new URLSearchParams(hash)
-    addToConsole('tgWebAppVersion: ' + (params.get('tgWebAppVersion') ?? ''))
-    addToConsole(`--- HASH PARAMS ---`)
-    for (const [key, value] of params.entries()) {
-      addToConsole(`${key}: ${value}`)
-    }
-    
-    const tgWebAppData = new URLSearchParams(params.get('tgWebAppData') ?? '')
-    addToConsole(`--- tgWebAppData ---`)
-    for (const [key, value] of tgWebAppData.entries()) {
-      addToConsole(`${key}: ${value}`)
-    }
-    
-    // Отображаем информацию о Telegram WebApp (если доступно)
-    try {
-      if (window.Telegram?.WebApp) {
-        const webApp = window.Telegram.WebApp
-        addToConsole('--- TELEGRAM WEBAPP ---')
-        addToConsole('initData: ' + (webApp.initData || 'не найдено'))
-        addToConsole('version: ' + (webApp.version || 'не найдено'))
-        addToConsole('platform: ' + (webApp.platform || 'не найдено'))
-        addToConsole('colorScheme: ' + (webApp.colorScheme || 'не найдено'))
+    return () => {
+      // Очищаем обработчики при размонтировании
+      if (browser && window.Telegram?.WebApp?.MainButton) {
+        window.Telegram.WebApp.MainButton.hide();
+      }
+    };
+  });
+
+  // Реактивное обновление главной кнопки
+  $: {
+    if (browser && window.Telegram?.WebApp) {
+      console.log('=== Button state check ===');
+      console.log('hasSelectedServices:', hasSelectedServices);
+      console.log('selectedServices:', selectedServices);
+      console.log('selectedServices.length:', selectedServices.length);
+      console.log('isMainButtonShown:', isMainButtonShown);
+      
+      if (hasSelectedServices) {
+        console.log('Should show button with services:', selectedServices);
+        const serviceOrders = selectedServices.map(s => ({
+          id: s.id,
+          name: s.name,
+          price: s.price
+        }));
+        console.log('Service orders mapped:', serviceOrders);
         
-        // Проверяем поддержку addToHomeScreen
-        const version = webApp.version || '0.0'
-        const platform = webApp.platform || 'unknown'
-        addToConsole('--- ПОДДЕРЖКА ФУНКЦИЙ ---')
-        addToConsole('Версия WebApp: ' + version)
-        addToConsole('Платформа: ' + platform)
-        addToConsole('isExpanded: ' + (webApp.isExpanded ? 'Да' : 'Нет'))
-        addToConsole('viewportHeight: ' + webApp.viewportHeight)
-        
-        // addToHomeScreen была добавлена в версии 7.10
-        const versionParts = version.split('.')
-        const major = parseInt(versionParts[0]) || 0
-        const minor = parseInt(versionParts[1]) || 0
-        const supportsAddToHome = major > 7 || (major === 7 && minor >= 10)
-        addToConsole('Поддержка addToHomeScreen: ' + (supportsAddToHome ? '✅ Да' : '❌ Нет (требуется 7.10+)'))
-        
-        // Проверяем платформу
-        const supportedPlatforms = ['ios', 'android', 'macos', 'windows', 'linux']
-        const platformSupported = supportedPlatforms.includes(platform.toLowerCase())
-        addToConsole('Платформа поддерживается: ' + (platformSupported ? '✅ Да' : '❓ Возможно нет'))
-        
-        // Дополнительные проверки
-        addToConsole('--- ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА ---')
-        addToConsole('User-Agent: ' + navigator.userAgent.substring(0, 50) + '...')
-        addToConsole('URL содержит tgWebAppStartParam: ' + (window.location.href.includes('tgWebAppStartParam') ? 'Да' : 'Нет'))
-        addToConsole('Доступные методы WebApp:')
-        
-        try {
-          const webAppAny = webApp as any
-          const methods = Object.getOwnPropertyNames(webAppAny).filter(prop => 
-            typeof webAppAny[prop] === 'function'
-          ).slice(0, 10) // показываем только первые 10
-          methods.forEach(method => addToConsole('  - ' + method + '()'))
-          if (methods.length === 10) addToConsole('  ... и другие')
-        } catch (e) {
-          addToConsole('  Не удалось получить список методов')
+        // Принудительно скрываем кнопку перед показом новой
+        if (window.Telegram.WebApp.MainButton) {
+          window.Telegram.WebApp.MainButton.hide();
         }
         
-        // Устанавливаем цвет фона тестового элемента
-        const bgColor = webApp.themeParams?.bg_color || 
-                       getComputedStyle(document.documentElement).getPropertyValue('--tg-theme-bg-color') || 
-                       '#fff'
-        testEl.style.backgroundColor = bgColor
+        // Показываем кнопку с актуальными данными
+        showSendDataButton(serviceOrders, handleOrderSuccess);
+        isMainButtonShown = true;
       } else {
-        addToConsole('Telegram WebApp API недоступно')
-        testEl.style.backgroundColor = '#f0f0f0'
+        console.log('Should hide button - no services selected');
+        if (window.Telegram.WebApp.MainButton && isMainButtonShown) {
+          window.Telegram.WebApp.MainButton.hide();
+          isMainButtonShown = false;
+        }
       }
-    } catch (error) {
-      addToConsole('Ошибка доступа к Telegram WebApp: ' + error)
     }
-  })
+  }
 </script>
 
-<h1 style="text-align: center;">TMA</h1>
+<div class="services-page">
+  <h1>Выберите услуги</h1>
+  
+  <!-- Уведомление об успехе -->
+  {#if showSuccessMessage}
+    <div class="success-message">
+      ✅ Заказ отправлен! Администратор свяжется с вами в ближайшее время.
+    </div>
+  {/if}
+  
+  <!-- Отладочная информация -->
+  <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 12px;">
+    <p>Selected services: {selectedServices.length}</p>
+    <p>Has selections: {hasSelectedServices}</p>
+    <p>Main button shown: {isMainButtonShown}</p>
+    <p>WebApp available: {browser && window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
+    <p>sendData available: {browser && window.Telegram?.WebApp?.sendData ? 'Yes' : 'No'}</p>
+    <p>Services state: {JSON.stringify(services.map(s => ({id: s.id, selected: s.selected})))}</p>
+    <!-- <button on:click={testBotConnection} style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
+      🔍 Тест соединения с ботом
+    </button> -->
+  </div>
+  
+  <div class="services-list">
+    {#each services as service (service.id)}
+      <label class="service-item" class:selected={service.selected}>
+        <input 
+          type="checkbox" 
+          checked={service.selected}
+          on:change={(e) => {
+            console.log('Checkbox changed:', service.id, e.currentTarget.checked);
+            toggleService(service.id);
+          }}
+        />
+        <div class="service-content">
+          <h3>{service.name}</h3>
+          <span class="price">{service.price.toLocaleString()} ₽</span>
+        </div>
+      </label>
+    {/each}
+  </div>
 
-<a href="/services">Services</a>
-
-<div bind:this={consEl} class="console">
-  <p style="margin-bottom: .5rem; font-weight: 700;">Console</p>
-</div>
-
-<div class="test-vars">
-  <div></div>
-  <div bind:this={testEl}></div>
+  {#if hasSelectedServices}
+    <div class="summary">
+      <h3>Выбрано услуг: {selectedServices.length}</h3>
+      <div class="total">
+        Итого: <strong>{totalPrice.toLocaleString()} ₽</strong>
+      </div>
+      
+      <div class="selected-services">
+        {#each selectedServices as service}
+          <div class="selected-service">
+            {service.name} - {service.price.toLocaleString()} ₽
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else}
+    <div class="empty-state">
+      <p>Выберите услуги для заказа</p>
+    </div>
+  {/if}
 </div>
 
 <style lang="scss">
-  .console {
-    overflow: auto;
+  .services-page {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: var(--tg-theme-text-color);
+  }
+
+  .success-message {
+    background: #4CAF50;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .service-list {
     display: flex;
     flex-direction: column;
-    margin-top: 1rem;
-    padding: 1rem;
-    width: 100%;
-    max-height: 50svh;
-    color: #fff;
-    background-color: #000;
-    border: 1px solid #aaa;
-    border-radius: .5rem;
-
-    p:not(:first-child) {
-      margin: .25rem 0;
-    }
+    gap: 15px;
+    margin-bottom: 30px;
   }
 
-  .buttons {
+  .service-item {
     display: flex;
-    gap: 1rem;
-    margin: 1rem 0;
-    flex-wrap: wrap;
-  }
-
-  .add-to-home-btn, .instructions-btn, .simple-btn, .check-btn {
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    font-weight: 600;
+    padding: 15px;
+    border: 2px solid var(--tg-theme-hint-color, #ccc);
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background: var(--tg-theme-bg-color);
 
     &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-color: var(--tg-theme-link-color, #007acc);
     }
 
-    &:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    &.selected {
+      border-color: var(--tg-theme-link-color, #007acc);
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 15px;
+      accent-color: var(--tg-theme-link-color, #007acc);
+    }
+
+    .service-content {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      h3 {
+        margin: 0;
+        color: var(--tg-theme-text-color);
+        font-size: 16px;
+      }
+
+      .price {
+        font-weight: bold;
+        color: var(--tg-theme-link-color, #007acc);
+        font-size: 18px;
+      }
     }
   }
 
-  .add-to-home-btn {
-    background: linear-gradient(135deg, var(--tg-theme-button-color, #2481cc), var(--tg-theme-accent-text-color, #1a6bb8));
-    color: var(--tg-theme-button-text-color, #ffffff);
+  .summary {
+    padding: 20px;
+    border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+    border: 1px solid var(--tg-theme-hint-color, #ccc);
+
+    h3 {
+      margin: 0 0 15px 0;
+      color: var(--tg-theme-text-color);
+    }
+
+    .total {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: var(--tg-theme-text-color);
+
+      strong {
+        color: var(--tg-theme-link-color, #007acc);
+        font-size: 20px;
+      }
+    }
+
+    .selected-services {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .selected-service {
+        padding: 8px 12px;
+        background: var(--tg-theme-bg-color);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--tg-theme-text-color);
+      }
+    }
   }
 
-  .instructions-btn {
-    background: linear-gradient(135deg, var(--tg-theme-secondary-bg-color, #f1f1f1), var(--tg-theme-hint-color, #999999));
-    color: var(--tg-theme-text-color, #000000);
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--tg-theme-hint-color);
+    font-style: italic;
   }
 
-  .simple-btn {
-    background: linear-gradient(135deg, #28a745, #20c997);
-    color: #ffffff;
-  }
+  @media (max-width: 480px) {
+    .services-page {
+      padding: 15px;
+    }
 
-  .check-btn {
-    background: linear-gradient(135deg, #ffc107, #fd7e14);
-    color: #212529;
-  }
+    .service-item {
+      padding: 12px;
 
-  .test-vars {
-    display: flex;
-    width: 100%;
-    height: 5rem;
+      .service-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
 
-    div {
-      width: 50%;
-      height: 100%;
-      border: 1px solid #aaa;
-
-      &:first-child {
-        background-color: var(--tg-theme-secondary-bg-color);
+        .price {
+          font-size: 16px;
+        }
       }
     }
   }
