@@ -1,11 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Конфигурация Supabase
-const SUPABASE_URL = 'https://haxfixzzcomsayyajyuq.supabase.co'
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhheGZpeHp6Y29tc2F5eWFqeXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NzE5NjcsImV4cCI6MjA2ODQ0Nzk2N30.n1CIoeMGNXfwMCcYRe5ryUMn6VjAu6MHQ1rw2wDoFpM'
-const SUPABASE_SERVICE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhheGZpeHp6Y29tc2F5eWFqeXVxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Mjg3MTk2NywiZXhwIjoyMDY4NDQ3OTY3fQ.gty92p5RJpCTgEbHMFTqGap-jJpUsfq0T08lj3lIPqI'
+// Конфигурация Supabase - используем переменные окружения
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://haxfixzzcomsayyajyuq.supabase.co'
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
+
+// Проверяем наличие обязательных переменных окружения
+if (!SUPABASE_ANON_KEY || !SUPABASE_SERVICE_KEY) {
+  throw new Error('Missing required Supabase environment variables')
+}
 
 // Создаем клиент с service_role для администраторских операций
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
