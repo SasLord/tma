@@ -93,28 +93,52 @@
 
   // Проверка административных прав
   async function checkAdminStatus() {
-    if (!telegramUser?.id) return
+    if (!telegramUser?.id) {
+      addDebugMessage('warn', 'No telegram user ID available for admin check')
+      return
+    }
+
+    addDebugMessage('info', `Checking admin status for user ID: ${telegramUser.id}`)
 
     try {
-      const response = await fetch(
-        'https://tma-webapp-store.netlify.app/.netlify/functions/webhook',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'check_admin',
-            user: telegramUser
-          })
-        }
-      )
+      // Определяем URL API в зависимости от окружения
+      const apiUrl =
+        browser && window.location.hostname === 'localhost'
+          ? 'http://localhost:8888/.netlify/functions/webhook'
+          : 'https://tma-webapp-store.netlify.app/.netlify/functions/webhook'
+
+      addDebugMessage('info', `Making request to: ${apiUrl}`)
+
+      const requestBody = {
+        action: 'check_admin',
+        user: telegramUser
+      }
+
+      addDebugMessage('info', `Request body: ${JSON.stringify(requestBody)}`)
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+
+      addDebugMessage('info', `Response status: ${response.status}`)
 
       if (response.ok) {
         const result = await response.json()
-        isUserAdmin = result.isAdmin
-        addDebugMessage('info', `Admin status: ${isUserAdmin}`)
+        addDebugMessage('info', `Response body: ${JSON.stringify(result)}`)
+        isUserAdmin = result.isAdmin || result.isSuperAdmin
+        addDebugMessage(
+          'info',
+          `Final admin status: ${isUserAdmin} (isAdmin: ${result.isAdmin}, isSuperAdmin: ${result.isSuperAdmin})`
+        )
+      } else {
+        const errorText = await response.text()
+        addDebugMessage('error', `HTTP error ${response.status}: ${errorText}`)
       }
     } catch (error) {
-      addDebugMessage('warn', `Admin check failed: ${error}`)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      addDebugMessage('error', `Admin check failed: ${errorMessage}`)
     }
   }
 
@@ -145,7 +169,10 @@
 
         // Проверяем права администратора
         if (telegramUser?.id) {
-          checkAdminStatus()
+          addDebugMessage('info', `Found user ID: ${telegramUser.id}, checking admin status...`)
+          await checkAdminStatus()
+        } else {
+          addDebugMessage('warn', 'No user ID found, cannot check admin status')
         }
 
         console.log('📊 Telegram capabilities:', telegramCapabilities)
@@ -238,6 +265,7 @@
     <p>Has selections: {hasSelectedServices}</p>
     <p>Main button shown: {isMainButtonShown}</p>
     <p>SDK initialized: {isSDKInitialized ? 'Yes' : 'No'}</p>
+    <p>User is admin: {isUserAdmin ? 'Yes' : 'No'}</p>
     <p><strong>Platform:</strong> {platformInfo}</p>
     <p><strong>User Agent:</strong> {navigator?.userAgent?.substring(0, 50) || 'Unknown'}...</p>
 

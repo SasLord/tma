@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест админ-панели</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .admin-link {
+            margin: 20px 0;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .admin-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .admin-button:hover {
+            transform: scale(1.05);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #444;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Тест функциональности админ-панели</h1>
+    
+    <div class="admin-link">
+        <a href="/admin" class="admin-button">🔐 Административная панель</a>
+        <p>Кнопка административной панели должна быть видна</p>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Тест API проверки админа</h3>
+        <button onclick="testSuperAdmin()">Тест супер-админа (1155907659)</button>
+        <button onclick="testRegularUser()">Тест обычного пользователя (123456789)</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📱 Симуляция пользователя Telegram</h3>
+        <button onclick="simulateUser('1155907659', 'Супер Админ', 'superadmin')">Симулировать супер-админа</button>
+        <button onclick="simulateUser('123456789', 'Обычный Пользователь', 'user')">Симулировать обычного пользователя</button>
+        <div id="simulationResult" class="result"></div>
+    </div>
+
+    <script>
+        const apiUrl = 'https://tma-webapp-store.netlify.app/.netlify/functions/webhook';
+
+        async function testSuperAdmin() {
+            const result = document.getElementById('apiResult');
+            result.textContent = 'Тестирование...';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'check_admin',
+                        user: { id: '1155907659' }
+                    })
+                });
+                
+                const data = await response.json();
+                result.textContent = `Супер-админ результат:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.textContent = `Ошибка: ${error.message}`;
+            }
+        }
+
+        async function testRegularUser() {
+            const result = document.getElementById('apiResult');
+            result.textContent = 'Тестирование...';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'check_admin',
+                        user: { id: '123456789' }
+                    })
+                });
+                
+                const data = await response.json();
+                result.textContent = `Обычный пользователь результат:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.textContent = `Ошибка: ${error.message}`;
+            }
+        }
+
+        async function simulateUser(userId, firstName, username) {
+            const result = document.getElementById('simulationResult');
+            result.textContent = 'Проверка прав...';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'check_admin',
+                        user: { 
+                            id: userId,
+                            first_name: firstName,
+                            username: username
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                result.innerHTML = `
+Симуляция пользователя:
+- ID: ${userId}
+- Имя: ${firstName}
+- Username: ${username}
+
+Права доступа:
+- Администратор: ${data.isAdmin ? '✅ Да' : '❌ Нет'}
+- Супер-админ: ${data.isSuperAdmin ? '👑 Да' : '❌ Нет'}
+
+${data.isAdmin ? '🎉 Кнопка "Административная панель" должна быть видна!' : '⚠️ Кнопка "Административная панель" скрыта'}
+                `;
+            } catch (error) {
+                result.textContent = `Ошибка: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

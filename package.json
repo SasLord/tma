@@ -39,10 +39,9 @@
     "vite-plugin-devtools-json": "^0.2.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
     "@telegram-apps/sdk": "^3.11.4",
     "@telegram-apps/sdk-svelte": "^2.0.30",
-    "telegraf": "^4.16.3",
-    "better-sqlite3": "^11.6.0",
-    "@types/better-sqlite3": "^7.6.11"
+    "telegraf": "^4.16.3"
   }
 }

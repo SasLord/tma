@@ -1,51 +1,19 @@
 import { Telegraf } from 'telegraf'
+import {
+  saveOrder,
+  getAllOrders,
+  clearAllOrders,
+  isAdmin,
+  addAdmin,
+  removeAdmin,
+  updateAdmin,
+  getAllAdmins,
+  isSuperAdmin
+} from './database.js'
 
-// Встроенная простая база данных для временного хранения (в памяти)
-let orders = []
-let admins = ['1155907659'] // ID главного администратора
-let nextOrderId = 1
+const SUPER_ADMIN_ID = '1155907659' // ID супер-администратора
 
-function saveOrder(orderData) {
-  const orderId = nextOrderId++
-  const order = {
-    id: orderId,
-    user_id: orderData.user?.id?.toString() || 'unknown',
-    user_name:
-      `${orderData.user?.first_name || ''} ${orderData.user?.last_name || ''}`.trim() || 'Unknown',
-    username: orderData.user?.username || null,
-    total_price: orderData.totalPrice || 0,
-    platform: orderData.platform || 'unknown',
-    status: 'new',
-    created_at: new Date().toISOString(),
-    services: orderData.services || []
-  }
-  orders.push(order)
-  console.log(`✅ Order saved with ID: ${orderId}`)
-  return orderId
-}
-
-function getAllOrders() {
-  return orders
-    .map((order) => ({
-      ...order,
-      services_list: order.services.map((s) => `${s.name} - ${s.price}₽`).join('\n')
-    }))
-    .reverse() // Новые сначала
-}
-
-function isAdmin(userId) {
-  return admins.includes(userId?.toString())
-}
-
-function addAdmin(userId) {
-  const userIdStr = userId?.toString()
-  if (userIdStr && !admins.includes(userIdStr)) {
-    admins.push(userIdStr)
-    console.log(`✅ Admin added: ${userId}`)
-  }
-}
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
   console.log('🔗 Netlify webhook handler called')
   console.log('Method:', event.httpMethod)
   console.log('Body:', event.body)
@@ -53,8 +21,45 @@ exports.handler = async (event) => {
   // CORS заголовки
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type'
+  }
+
+  // Функция отправки сообщения всем администраторам
+  async function sendToAllAdmins(message, botInstance) {
+    try {
+      // Получаем список всех администраторов
+      const admins = await getAllAdmins()
+      console.log(`📋 Found ${admins.length} admins to notify`)
+
+      if (admins.length === 0) {
+        console.log('⚠️ No admins found to notify')
+        return { success: false, sent: 0, total: 0, error: 'No admins found' }
+      }
+
+      // Отправляем сообщение каждому администратору
+      const promises = admins.map(async (admin) => {
+        try {
+          console.log(`📤 Sending message to admin ${admin.user_id} (${admin.name})`)
+          const result = await botInstance.telegram.sendMessage(admin.user_id, message)
+          console.log(`✅ Message sent to admin ${admin.user_id}`)
+          return result
+        } catch (error) {
+          console.error(`❌ Failed to send message to admin ${admin.user_id}:`, error.message)
+          return null
+        }
+      })
+
+      // Ждем завершения всех отправок
+      const results = await Promise.all(promises)
+      const successful = results.filter((r) => r !== null).length
+
+      console.log(`📨 Message sent to ${successful}/${admins.length} admins`)
+      return { success: successful > 0, sent: successful, total: admins.length }
+    } catch (error) {
+      console.error('❌ Failed to send to all admins:', error)
+      return { success: false, error: error.message, sent: 0, total: 0 }
+    }
   }
 
   // Обрабатываем preflight запросы
@@ -64,6 +69,48 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers,
       body: ''
+    }
+  }
+
+  // Обрабатываем GET запросы для получения данных
+  if (event.httpMethod === 'GET') {
+    console.log('📖 GET request processing')
+    const queryParams = event.queryStringParameters || {}
+
+    if (queryParams.type === 'get_orders') {
+      const userId = queryParams.user_id
+      if (!userId || !(await isAdmin(userId))) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Access denied' })
+        }
+      }
+
+      const orders = await getAllOrders()
+      console.log('📋 Retrieved orders:', orders.length)
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ orders })
+      }
+    }
+
+    if (queryParams.type === 'check_admin') {
+      const userId = queryParams.user_id
+      const adminStatus = await isAdmin(userId)
+      console.log('👤 Admin check for user:', userId, 'Result:', adminStatus)
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ isAdmin: adminStatus })
+      }
+    }
+
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Invalid GET request type' })
     }
   }
 
@@ -208,7 +255,7 @@ exports.handler = async (event) => {
 
       try {
         // Сохраняем заказ в базу данных
-        const orderId = saveOrder({
+        const orderId = await saveOrder({
           services,
           totalPrice,
           platform,
@@ -270,8 +317,8 @@ exports.handler = async (event) => {
         })
 
       try {
-        await bot.telegram.sendMessage(ADMIN_CHAT_ID, message)
-        console.log('✅ SDK order sent to admin')
+        const sendResult = await sendToAllAdmins(message, bot)
+        console.log(`✅ SDK order sent to admins: ${sendResult.sent}/${sendResult.total}`)
         return {
           statusCode: 200,
           headers,
@@ -280,7 +327,8 @@ exports.handler = async (event) => {
             message: 'Order processed via Telegram SDK',
             orderType,
             totalPrice,
-            servicesCount: services.length
+            servicesCount: services.length,
+            notifiedAdmins: sendResult.sent
           })
         }
       } catch (sendError) {
@@ -297,8 +345,30 @@ exports.handler = async (event) => {
     if (requestBody.action) {
       const userId = requestBody.user?.id?.toString()
 
+      // Обработка проверки административных прав (не требует авторизации)
+      if (requestBody.action === 'check_admin') {
+        console.log('🔍 Admin check request for user:', userId)
+
+        const userIsAdmin = await isAdmin(userId)
+        const userIsSuperAdmin = await isSuperAdmin(userId)
+
+        console.log(
+          `👤 User ${userId} - isAdmin: ${userIsAdmin}, isSuperAdmin: ${userIsSuperAdmin}`
+        )
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            isAdmin: userIsAdmin,
+            isSuperAdmin: userIsSuperAdmin
+          })
+        }
+      }
+
       // Проверяем, что пользователь является администратором
-      if (!userId || !isAdmin(userId)) {
+      if (!userId || !(await isAdmin(userId))) {
         return {
           statusCode: 403,
           headers,
@@ -309,7 +379,7 @@ exports.handler = async (event) => {
       switch (requestBody.action) {
         case 'get_orders':
           try {
-            const orders = getAllOrders()
+            const orders = await getAllOrders()
             return {
               statusCode: 200,
               headers,
@@ -323,7 +393,49 @@ exports.handler = async (event) => {
             }
           }
 
-        case 'add_admin':
+        case 'clear_orders':
+          try {
+            // Только супер-администратор может очистить все заказы
+            const isSuper = await isSuperAdmin(userId)
+            if (!isSuper) {
+              return {
+                statusCode: 403,
+                headers,
+                body: JSON.stringify({ error: 'Only super admin can clear all orders' })
+              }
+            }
+
+            await clearAllOrders()
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ success: true, message: 'All orders cleared successfully' })
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to clear orders', details: error.message })
+            }
+          }
+
+        case 'get_admins':
+          try {
+            const adminsList = await getAllAdmins()
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ success: true, admins: adminsList })
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to get admins', details: error.message })
+            }
+          }
+
+        case 'get_user_data':
           try {
             const { targetUserId } = requestBody
             if (!targetUserId) {
@@ -334,11 +446,68 @@ exports.handler = async (event) => {
               }
             }
 
-            addAdmin(targetUserId)
+            // Пытаемся получить информацию о пользователе через Telegram Bot API
+            try {
+              const chatInfo = await bot.telegram.getChat(targetUserId)
+              const userData = {
+                id: chatInfo.id,
+                first_name: chatInfo.first_name,
+                last_name: chatInfo.last_name,
+                username: chatInfo.username
+              }
+
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ success: true, userData })
+              }
+            } catch (telegramError) {
+              // Если не удалось получить через Telegram API, возвращаем ошибку
+              return {
+                statusCode: 404,
+                headers,
+                body: JSON.stringify({
+                  success: false,
+                  error: 'Пользователь не найден или бот не имеет доступа к его данным'
+                })
+              }
+            }
+          } catch (error) {
             return {
-              statusCode: 200,
+              statusCode: 500,
               headers,
-              body: JSON.stringify({ success: true, message: 'Admin added successfully' })
+              body: JSON.stringify({ error: 'Failed to get user data', details: error.message })
+            }
+          }
+
+        case 'add_admin':
+          try {
+            const { targetUserId, targetUserName, targetUsername } = requestBody
+            if (!targetUserId) {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Target user ID is required' })
+              }
+            }
+
+            const newAdmin = await addAdmin(targetUserId, targetUserName, targetUsername)
+            if (newAdmin) {
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                  success: true,
+                  message: 'Admin added successfully',
+                  admin: newAdmin
+                })
+              }
+            } else {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Admin already exists or invalid data' })
+              }
             }
           } catch (error) {
             return {
@@ -348,11 +517,74 @@ exports.handler = async (event) => {
             }
           }
 
-        case 'check_admin':
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ success: true, isAdmin: true })
+        case 'remove_admin':
+          try {
+            const { targetUserId } = requestBody
+            if (!targetUserId) {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Target user ID is required' })
+              }
+            }
+
+            const result = await removeAdmin(targetUserId, userId)
+            if (result.success) {
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ success: true, message: 'Admin removed successfully' })
+              }
+            } else {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: result.error })
+              }
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to remove admin', details: error.message })
+            }
+          }
+
+        case 'update_admin':
+          try {
+            const { targetUserId, updates } = requestBody
+            if (!targetUserId) {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Target user ID is required' })
+              }
+            }
+
+            const result = await updateAdmin(targetUserId, updates)
+            if (result.success) {
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                  success: true,
+                  message: 'Admin updated successfully',
+                  admin: result.admin
+                })
+              }
+            } else {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: result.error })
+              }
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to update admin', details: error.message })
+            }
           }
 
         default:

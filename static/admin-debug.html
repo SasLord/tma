@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Отладка</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 10px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .tab.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .tab:last-child {
+            margin-right: 0;
+        }
+        .button {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .order-card, .admin-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+        }
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .success {
+            color: #51cf66;
+            background: rgba(81, 207, 102, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .hidden {
+            display: none;
+        }
+        .user-select {
+            margin-bottom: 20px;
+        }
+        .user-option {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .user-option:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .user-option.selected {
+            background: rgba(81, 207, 102, 0.3);
+            border: 2px solid #51cf66;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .message.success {
+            background: rgba(81, 207, 102, 0.2);
+            color: #51cf66;
+            border: 2px solid #51cf66;
+        }
+        .message.error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 2px solid #ff6b6b;
+        }
+        .message.loading {
+            background: rgba(116, 164, 255, 0.2);
+            color: #74a4ff;
+            border: 2px solid #74a4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ Админ-панель (Отладка)</h1>
+            <p>Тестирование функций администрирования без Telegram WebApp</p>
+        </div>
+
+        <div class="section">
+            <h2>👤 Выбор пользователя</h2>
+            <div class="user-select">
+                <div class="user-option" onclick="selectUser('1155907659', 'Александр П.', 'saslord')">
+                    <strong>Супер-админ</strong><br>
+                    ID: 1155907659 | Имя: Александр П. | Username: saslord
+                </div>
+                <div class="user-option" onclick="selectUser('123456789', 'Новый Админ', 'new_admin')">
+                    <strong>Обычный админ</strong><br>
+                    ID: 123456789 | Имя: Новый Админ | Username: new_admin
+                </div>
+                <div class="user-option" onclick="selectUser('987654321', 'Обычный пользователь', 'user')">
+                    <strong>Обычный пользователь</strong><br>
+                    ID: 987654321 | Имя: Обычный пользователь | Username: user
+                </div>
+            </div>
+            <div id="currentUser" class="loading">Пользователь не выбран</div>
+        </div>
+
+        <div class="section">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('orders')">📋 Заказы</button>
+                <button class="tab" onclick="switchTab('admins')">👥 Администраторы</button>
+            </div>
+
+            <div id="ordersTab">
+                <div style="margin-bottom: 20px;">
+                    <button class="button" onclick="loadOrders()">🔄 Обновить заказы</button>
+                    <button class="button" onclick="clearAllOrders()">🗑️ Очистить все заказы</button>
+                </div>
+                <div id="ordersContent" class="loading">Нажмите "Обновить заказы" для загрузки</div>
+            </div>
+
+            <div id="adminsTab" class="hidden">
+                <div id="messageContainer"></div>
+                <div style="margin-bottom: 20px;">
+                    <button class="button" onclick="loadAdmins()">🔄 Обновить админов</button>
+                    <br><br>
+                    <input type="text" id="newAdminId" class="input" placeholder="ID пользователя">
+                    <input type="text" id="newAdminName" class="input" placeholder="Имя">
+                    <input type="text" id="newAdminUsername" class="input" placeholder="Username">
+                    <button class="button" onclick="addAdmin()">➕ Добавить админа</button>
+                </div>
+                <div id="adminsContent" class="loading">Нажмите "Обновить админов" для загрузки</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'https://tma-webapp-store.netlify.app/.netlify/functions/webhook';
+        let currentUser = null;
+
+        function showMessage(text, type = 'info') {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+            
+            // Автоудаление сообщения через 5 секунд
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        function selectUser(id, name, username) {
+            currentUser = { id: parseInt(id), first_name: name, username: username };
+            
+            // Обновляем UI
+            document.querySelectorAll('.user-option').forEach(el => el.classList.remove('selected'));
+            event.target.classList.add('selected');
+            
+            document.getElementById('currentUser').innerHTML = 
+                `<strong>Текущий пользователь:</strong> ${name} (ID: ${id}, @${username})`;
+                
+            // Проверяем права доступа
+            checkAdminStatus();
+        }
+
+        async function checkAdminStatus() {
+            if (!currentUser) return;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'check_admin',
+                        user: currentUser
+                    })
+                });
+                
+                const result = await response.json();
+                const statusHtml = `
+                    <strong>Текущий пользователь:</strong> ${currentUser.first_name} (ID: ${currentUser.id})<br>
+                    <strong>Права:</strong> ${result.isAdmin ? '✅ Администратор' : '❌ Обычный пользователь'} 
+                    ${result.isSuperAdmin ? '👑 Супер-админ' : ''}
+                `;
+                document.getElementById('currentUser').innerHTML = statusHtml;
+            } catch (error) {
+                console.error('Ошибка проверки прав:', error);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('ordersTab').classList.toggle('hidden', tab !== 'orders');
+            document.getElementById('adminsTab').classList.toggle('hidden', tab !== 'admins');
+        }
+
+        async function loadOrders() {
+            if (!currentUser) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+            
+            const content = document.getElementById('ordersContent');
+            content.innerHTML = '<div class="loading">Загрузка заказов...</div>';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'get_orders',
+                        user: currentUser
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.orders && result.orders.length > 0) {
+                    let html = `<h3>📋 Найдено заказов: ${result.orders.length}</h3>`;
+                    result.orders.forEach(order => {
+                        html += `
+                            <div class="order-card">
+                                <strong>Заказ #${order.id}</strong><br>
+                                <strong>Клиент:</strong> ${order.user_name} (ID: ${order.user_id})<br>
+                                <strong>Сумма:</strong> ${order.total_price} ₽<br>
+                                <strong>Статус:</strong> ${order.status}<br>
+                                <strong>Платформа:</strong> ${order.platform}<br>
+                                <strong>Дата:</strong> ${new Date(order.created_at).toLocaleString('ru')}<br>
+                                <strong>Услуги:</strong><br>
+                                ${order.services.map(s => `• ${s.name} - ${s.price} ₽`).join('<br>')}
+                            </div>
+                        `;
+                    });
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="error">📭 Заказы не найдены</div>';
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="error">❌ Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        async function loadAdmins() {
+            if (!currentUser) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+            
+            const content = document.getElementById('adminsContent');
+            content.innerHTML = '<div class="loading">Загрузка администраторов...</div>';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'get_admins',
+                        user: currentUser
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.admins && result.admins.length > 0) {
+                    let html = `<h3>👥 Найдено администраторов: ${result.admins.length}</h3>`;
+                    result.admins.forEach(admin => {
+                        html += `
+                            <div class="admin-card">
+                                <strong>${admin.name}</strong> ${admin.is_super_admin ? '👑' : ''}<br>
+                                <strong>ID:</strong> ${admin.user_id}<br>
+                                <strong>Username:</strong> @${admin.username || 'не указан'}<br>
+                                <strong>Добавлен:</strong> ${new Date(admin.created_at).toLocaleString('ru')}<br>
+                                <strong>Роль:</strong> ${admin.is_super_admin ? 'Супер-администратор' : 'Администратор'}
+                                ${!admin.is_super_admin ? `<button class="button" onclick="removeAdmin('${admin.user_id}')">🗑️ Удалить</button>` : ''}
+                            </div>
+                        `;
+                    });
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<div class="error">👥 Администраторы не найдены</div>';
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="error">❌ Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        async function addAdmin() {
+            if (!currentUser) {
+                showMessage('Сначала выберите пользователя', 'error');
+                return;
+            }
+            
+            const id = document.getElementById('newAdminId').value.trim();
+            const name = document.getElementById('newAdminName').value.trim();
+            const username = document.getElementById('newAdminUsername').value.trim();
+            
+            if (!id || !name || !username) {
+                showMessage('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (!/^\d+$/.test(id)) {
+                showMessage('ID должен содержать только цифры', 'error');
+                return;
+            }
+            
+            showMessage('Добавляем администратора...', 'loading');
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'add_admin',
+                        user: currentUser,
+                        targetUserId: id,
+                        targetUserName: name,
+                        targetUsername: username
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('newAdminId').value = '';
+                    document.getElementById('newAdminName').value = '';
+                    document.getElementById('newAdminUsername').value = '';
+                    showMessage('✅ Администратор добавлен успешно!', 'success');
+                    // Автообновление списка админов
+                    setTimeout(() => loadAdmins(), 1000);
+                } else {
+                    showMessage(`❌ Ошибка: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Ошибка сети: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeAdmin(adminId) {
+            if (!currentUser) {
+                showMessage('Сначала выберите пользователя', 'error');
+                return;
+            }
+            
+            if (!confirm('Удалить администратора?')) return;
+            
+            showMessage('Удаляем администратора...', 'loading');
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'remove_admin',
+                        user: currentUser,
+                        targetUserId: adminId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Администратор удален успешно!', 'success');
+                    // Автообновление списка админов
+                    setTimeout(() => loadAdmins(), 1000);
+                } else {
+                    showMessage(`❌ Ошибка: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Ошибка сети: ${error.message}`, 'error');
+            }
+        }
+
+        async function clearAllOrders() {
+            if (!currentUser) {
+                showMessage('Сначала выберите пользователя', 'error');
+                return;
+            }
+            
+            if (!confirm('Удалить ВСЕ заказы? Это действие нельзя отменить!')) return;
+            
+            showMessage('Удаляем все заказы...', 'loading');
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'clear_orders',
+                        user: currentUser
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Все заказы удалены успешно!', 'success');
+                    // Автообновление списка заказов
+                    setTimeout(() => loadOrders(), 1000);
+                } else {
+                    showMessage(`❌ Ошибка: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Ошибка сети: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
