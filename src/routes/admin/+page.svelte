@@ -117,6 +117,48 @@
     }
   })
 
+  // Функция для красивого отображения платформы
+  function formatPlatform(platform: string): { icon: string; text: string; title: string } {
+    // Анализируем строку платформы
+    const isActive = platform.includes('active')
+    const isMobile = platform.includes('mobile')
+    const isDesktop = platform.includes('desktop') 
+    const isWeb = platform.includes('web')
+    const isTelegram = platform.includes('telegram_webapp')
+    
+    // Определяем иконку
+    let icon = '🌐' // По умолчанию
+    let text = 'Неизв.'
+    let title = platform // Полное название в tooltip
+    
+    if (isTelegram) {
+      if (isMobile) {
+        icon = '📱'
+        text = 'Мобильный'
+      } else if (isDesktop) {
+        icon = '💻'
+        text = 'Десктоп'
+      } else if (isWeb) {
+        icon = '🌐'
+        text = 'Веб'
+      } else {
+        icon = '✈️'
+        text = 'Telegram'
+      }
+      
+      // Добавляем статус активности
+      if (!isActive) {
+        icon = '⚫' + icon
+        text = 'Неакт. ' + text
+      }
+    } else {
+      // Другие платформы
+      text = platform.length > 10 ? platform.substring(0, 8) + '...' : platform
+    }
+    
+    return { icon, text, title }
+  }
+
   async function checkAdminStatus() {
     try {
       const response = await fetch(
@@ -437,6 +479,7 @@
           {:else}
             <div class="orders-grid">
               {#each orders as order (order.id)}
+                {@const platformInfo = formatPlatform(order.platform)}
                 <div class="order-card">
                   <div class="order-header">
                     <span class="order-id">Заказ #{order.id}</span>
@@ -463,7 +506,9 @@
                     <div class="order-date">
                       📅 {new Date(order.created_at).toLocaleDateString('ru')}
                     </div>
-                    <div class="order-platform">🌐 {order.platform}</div>
+                    <div class="order-platform" title={platformInfo.title}>
+                      {platformInfo.icon} {platformInfo.text}
+                    </div>
                   </div>
                 </div>
               {/each}
@@ -824,6 +869,22 @@
     grid-column: 1 / -1;
   }
 
+  .order-platform {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help;
+    transition: background-color 0.2s;
+  }
+
+  .order-platform:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
   .admin-header {
     margin-bottom: 15px;
   }
@@ -920,6 +981,22 @@
     .orders-grid,
     .admins-grid {
       grid-template-columns: 1fr;
+    }
+
+    .order-footer {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+
+    .order-total {
+      grid-column: 1 / -1;
+      font-size: 1rem;
+    }
+
+    .order-platform {
+      font-size: 0.75rem;
+      padding: 3px 6px;
     }
   }
 </style>
