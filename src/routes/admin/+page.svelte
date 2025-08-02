@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { browser } from '$app/environment'
+  import { goto } from '$app/navigation'
+  import { backButton } from '@telegram-apps/sdk-svelte'
 
   interface Order {
     id: number
@@ -55,11 +57,26 @@
   onMount(async () => {
     if (browser) {
       // Настройка кнопки "Назад" в Telegram WebApp
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.BackButton.show()
-        window.Telegram.WebApp.BackButton.onClick(() => {
-          window.history.back()
-        })
+      try {
+        if (backButton.mount.isAvailable()) {
+          backButton.mount()
+          backButton.show()
+
+          // Настраиваем обработчик клика для возврата на главную страницу
+          const unsubscribe = backButton.onClick(() => {
+            goto('/')
+          })
+
+          // Сохраняем функцию отписки для cleanup
+          backButtonCleanup = () => {
+            unsubscribe()
+            if (backButton.hide.isAvailable()) {
+              backButton.hide()
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to setup back button:', error)
       }
 
       try {
@@ -89,6 +106,14 @@
       } finally {
         loading = false
       }
+    }
+  })
+
+  let backButtonCleanup: (() => void) | null = null
+
+  onDestroy(() => {
+    if (backButtonCleanup) {
+      backButtonCleanup()
     }
   })
 
@@ -198,7 +223,7 @@
       )
 
       const result = await response.json()
-      
+
       if (result.success) {
         success = 'Администратор добавлен успешно!'
         newAdminId = ''
@@ -225,7 +250,7 @@
     }
 
     loadingUserData = true
-    
+
     try {
       const response = await fetch(
         'https://tma-webapp-store.netlify.app/.netlify/functions/webhook',
@@ -241,10 +266,12 @@
       )
 
       const result = await response.json()
-      
+
       if (result.success && result.userData) {
         if (!newAdminName.trim()) {
-          newAdminName = result.userData.first_name + (result.userData.last_name ? ' ' + result.userData.last_name : '')
+          newAdminName =
+            result.userData.first_name +
+            (result.userData.last_name ? ' ' + result.userData.last_name : '')
         }
         if (!newAdminUsername.trim() && result.userData.username) {
           newAdminUsername = result.userData.username
@@ -258,7 +285,8 @@
     } finally {
       loadingUserData = false
     }
-  }  async function removeAdmin(adminId: string) {
+  }
+  async function removeAdmin(adminId: string) {
     if (!confirm('Удалить администратора?')) return
 
     try {
@@ -464,8 +492,8 @@
                     class="input"
                     type="text"
                   />
-                  <button 
-                    class="btn secondary small" 
+                  <button
+                    class="btn secondary small"
                     on:click={getUserDataById}
                     disabled={loadingUserData}
                     title="Получить данные пользователя по ID"
@@ -473,12 +501,7 @@
                     {loadingUserData ? '⏳' : '🔍'}
                   </button>
                 </div>
-                <input 
-                  bind:value={newAdminName} 
-                  placeholder="Имя *" 
-                  class="input" 
-                  type="text" 
-                />
+                <input bind:value={newAdminName} placeholder="Имя *" class="input" type="text" />
                 <input
                   bind:value={newAdminUsername}
                   placeholder="Username (необязательно)"

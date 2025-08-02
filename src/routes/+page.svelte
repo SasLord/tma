@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { browser } from '$app/environment'
+  import { backButton } from '@telegram-apps/sdk-svelte'
   import {
     showSendDataButton,
     hideMainButton,
@@ -157,6 +158,16 @@
         await initializeTelegramSDK()
         isSDKInitialized = true
         addDebugMessage('info', 'SDK initialized successfully')
+
+        // Скрываем кнопку "Назад" на главной странице (должен быть только крестик)
+        try {
+          if (backButton.hide.isAvailable()) {
+            backButton.hide()
+            addDebugMessage('info', 'Back button hidden on main page')
+          }
+        } catch (error) {
+          addDebugMessage('warn', `Failed to hide back button: ${error}`)
+        }
 
         // Получение информации о возможностях
         telegramCapabilities = getTelegramCapabilities()
