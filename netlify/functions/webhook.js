@@ -1,5 +1,50 @@
 import { Telegraf } from 'telegraf'
 
+// Встроенная простая база данных для временного хранения (в памяти)
+let orders = []
+let admins = ['1155907659'] // ID главного администратора
+let nextOrderId = 1
+
+function saveOrder(orderData) {
+  const orderId = nextOrderId++
+  const order = {
+    id: orderId,
+    user_id: orderData.user?.id?.toString() || 'unknown',
+    user_name:
+      `${orderData.user?.first_name || ''} ${orderData.user?.last_name || ''}`.trim() || 'Unknown',
+    username: orderData.user?.username || null,
+    total_price: orderData.totalPrice || 0,
+    platform: orderData.platform || 'unknown',
+    status: 'new',
+    created_at: new Date().toISOString(),
+    services: orderData.services || []
+  }
+  orders.push(order)
+  console.log(`✅ Order saved with ID: ${orderId}`)
+  return orderId
+}
+
+function getAllOrders() {
+  return orders
+    .map((order) => ({
+      ...order,
+      services_list: order.services.map((s) => `${s.name} - ${s.price}₽`).join('\n')
+    }))
+    .reverse() // Новые сначала
+}
+
+function isAdmin(userId) {
+  return admins.includes(userId?.toString())
+}
+
+function addAdmin(userId) {
+  const userIdStr = userId?.toString()
+  if (userIdStr && !admins.includes(userIdStr)) {
+    admins.push(userIdStr)
+    console.log(`✅ Admin added: ${userId}`)
+  }
+}
+
 exports.handler = async (event) => {
   console.log('🔗 Netlify webhook handler called')
   console.log('Method:', event.httpMethod)
@@ -161,6 +206,21 @@ exports.handler = async (event) => {
       const user = requestBody.user
       const orderType = requestBody.type || 'order'
 
+      try {
+        // Сохраняем заказ в базу данных
+        const orderId = saveOrder({
+          services,
+          totalPrice,
+          platform,
+          user,
+          type: orderType
+        })
+        console.log(`✅ Order saved to database with ID: ${orderId}`)
+      } catch (dbError) {
+        console.error('❌ Failed to save order to database:', dbError)
+        // Продолжаем выполнение даже если БД недоступна
+      }
+
       // Формируем список услуг
       const servicesList = services
         .map((service) => '• ' + service.name + ' - ' + service.price.toLocaleString() + '₽')
@@ -230,6 +290,77 @@ exports.handler = async (event) => {
           headers,
           body: JSON.stringify({ error: 'Failed to send message', details: sendError.message })
         }
+      }
+    }
+
+    // === API ДЛЯ АДМИНИСТРИРОВАНИЯ ===
+    if (requestBody.action) {
+      const userId = requestBody.user?.id?.toString()
+
+      // Проверяем, что пользователь является администратором
+      if (!userId || !isAdmin(userId)) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Access denied. Admin privileges required.' })
+        }
+      }
+
+      switch (requestBody.action) {
+        case 'get_orders':
+          try {
+            const orders = getAllOrders()
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ success: true, orders })
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to get orders', details: error.message })
+            }
+          }
+
+        case 'add_admin':
+          try {
+            const { targetUserId } = requestBody
+            if (!targetUserId) {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Target user ID is required' })
+              }
+            }
+
+            addAdmin(targetUserId)
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ success: true, message: 'Admin added successfully' })
+            }
+          } catch (error) {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: 'Failed to add admin', details: error.message })
+            }
+          }
+
+        case 'check_admin':
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, isAdmin: true })
+          }
+
+        default:
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Unknown action' })
+          }
       }
     }
 

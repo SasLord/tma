@@ -312,6 +312,9 @@ export async function sendOrderToBot(
   }
 }
 
+// Глобальная переменная для хранения текущего обработчика
+let currentClickHandler: (() => Promise<void>) | null = null
+
 /**
  * Настройка главной кнопки с использованием официального SDK
  */
@@ -336,32 +339,31 @@ export async function showSendDataButton(
 
     debugLog('info', `Setting button text: ${buttonText}`)
 
-    // Настройка кнопки
-    mainButton.setParams({
-      text: buttonText,
-      backgroundColor: '#007ACC',
-      textColor: '#FFFFFF',
-      isEnabled: true,
-      isVisible: true
-    })
-
-    debugLog('info', 'Button params set successfully')
-
-    // Удаление предыдущих обработчиков
-    try {
-      mainButton.offClick(() => {})
-    } catch {
-      debugLog('info', 'No previous handlers to remove')
+    // Удаление предыдущего обработчика, если он существует
+    if (currentClickHandler) {
+      try {
+        mainButton.offClick(currentClickHandler)
+        debugLog('info', 'Previous click handler removed')
+      } catch (error) {
+        debugLog('warn', 'Failed to remove previous handler')
+      }
     }
 
-    // Новый обработчик клика
-    const clickHandler = async () => {
+    // Создание нового обработчика клика
+    currentClickHandler = async () => {
       try {
         debugLog('info', 'Main button clicked, sending order...')
+
+        // Отключаем кнопку на время отправки
+        mainButton.setParams({ isEnabled: false, text: 'Отправка...' })
+
         await sendOrderToBot(services, onSuccess)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         debugLog('error', `Button click handler failed: ${errorMessage}`)
+
+        // Включаем кнопку обратно при ошибке
+        mainButton.setParams({ isEnabled: true, text: buttonText })
 
         // Показать ошибку пользователю через popup
         try {
@@ -376,8 +378,17 @@ export async function showSendDataButton(
       }
     }
 
-    // Подключение обработчика
-    mainButton.onClick(clickHandler)
+    // Настройка кнопки
+    mainButton.setParams({
+      text: buttonText,
+      backgroundColor: '#007ACC',
+      textColor: '#FFFFFF',
+      isEnabled: true,
+      isVisible: true
+    })
+
+    // Подключение нового обработчика
+    mainButton.onClick(currentClickHandler)
     debugLog('info', 'Click handler attached successfully')
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -391,6 +402,12 @@ export async function showSendDataButton(
  */
 export function hideMainButton(): void {
   try {
+    // Удаляем текущий обработчик
+    if (currentClickHandler && mainButton.isMounted()) {
+      mainButton.offClick(currentClickHandler)
+      currentClickHandler = null
+    }
+
     if (mainButton.isMounted()) {
       mainButton.setParams({ isVisible: false })
       debugLog('info', 'Main button hidden')

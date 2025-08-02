@@ -32,6 +32,7 @@
   let telegramUser: ReturnType<typeof getTelegramUser> | null = null
   let isSDKInitialized = false
   let platformInfo = ''
+  let isUserAdmin = false
 
   // Система отладки для мобильных устройств
   let debugMessages: { time: string; type: 'info' | 'error' | 'warn'; message: string }[] = []
@@ -90,6 +91,33 @@
     }, 5000)
   }
 
+  // Проверка административных прав
+  async function checkAdminStatus() {
+    if (!telegramUser?.id) return
+
+    try {
+      const response = await fetch(
+        'https://tma-webapp-store.netlify.app/.netlify/functions/webhook',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'check_admin',
+            user: telegramUser
+          })
+        }
+      )
+
+      if (response.ok) {
+        const result = await response.json()
+        isUserAdmin = result.isAdmin
+        addDebugMessage('info', `Admin status: ${isUserAdmin}`)
+      }
+    } catch (error) {
+      addDebugMessage('warn', `Admin check failed: ${error}`)
+    }
+  }
+
   // Инициализация при монтировании
   onMount(async () => {
     if (browser) {
@@ -114,6 +142,11 @@
         addDebugMessage('info', `User: ${telegramUser?.first_name || 'Unknown'}`)
         addDebugMessage('info', `Platform: ${platformInfo}`)
         addDebugMessage('info', `Capabilities: ${JSON.stringify(telegramCapabilities)}`)
+
+        // Проверяем права администратора
+        if (telegramUser?.id) {
+          checkAdminStatus()
+        }
 
         console.log('📊 Telegram capabilities:', telegramCapabilities)
         console.log('👤 Telegram user:', telegramUser)
@@ -180,6 +213,13 @@
 
 <div class="services-page">
   <h1>Выберите услуги</h1>
+
+  <!-- Админская ссылка -->
+  {#if isUserAdmin}
+    <div class="admin-link">
+      <a href="/admin" class="admin-button"> 🔐 Административная панель </a>
+    </div>
+  {/if}
 
   <!-- Уведомление об успехе -->
   {#if showSuccessMessage}
@@ -303,6 +343,29 @@
     text-align: center;
     font-weight: 500;
     animation: slideIn 0.3s ease-out;
+  }
+
+  .admin-link {
+    text-align: center;
+    margin-bottom: 20px;
+
+    .admin-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      }
+    }
   }
 
   @keyframes slideIn {
