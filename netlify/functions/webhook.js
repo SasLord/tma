@@ -220,11 +220,11 @@ export const handler = async (event) => {
       // Команда для принудительного обновления Menu Button (только для админов)
       bot.command('updatemenu', async (ctx) => {
         const userId = ctx.from.id.toString()
-        
+
         // Проверяем, является ли пользователь администратором
         const userIsAdmin = await isAdmin(userId)
         const userIsSuperAdmin = await isSuperAdmin(userId)
-        
+
         if (!userIsAdmin && !userIsSuperAdmin) {
           ctx.reply('❌ Эта команда доступна только администраторам')
           return
