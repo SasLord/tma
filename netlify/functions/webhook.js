@@ -158,7 +158,7 @@ export const handler = async (event) => {
     }
 
     // Устанавливаем Menu Button при первом запуске
-    await setupMenuButton()
+    // await setupMenuButton()
 
     // Парсим JSON из event.body
     let requestBody

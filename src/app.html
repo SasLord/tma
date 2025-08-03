@@ -1,10 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" />
     <link rel="stylesheet" href="%sveltekit.assets%/style.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Улучшенная поддержка мобильных устройств -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#667eea" />
+
+    <!-- Telegram Web App специфичные meta теги -->
+    <meta name="telegram-app" content="true" />
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     %sveltekit.head%
   </head>
