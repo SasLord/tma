@@ -122,15 +122,15 @@
     // Анализируем строку платформы
     const isActive = platform.includes('active')
     const isMobile = platform.includes('mobile')
-    const isDesktop = platform.includes('desktop') 
+    const isDesktop = platform.includes('desktop')
     const isWeb = platform.includes('web')
     const isTelegram = platform.includes('telegram_webapp')
-    
+
     // Определяем иконку
     let icon = '🌐' // По умолчанию
     let text = 'Неизв.'
     let title = platform // Полное название в tooltip
-    
+
     if (isTelegram) {
       if (isMobile) {
         icon = '📱'
@@ -145,7 +145,7 @@
         icon = '✈️'
         text = 'Telegram'
       }
-      
+
       // Добавляем статус активности
       if (!isActive) {
         icon = '⚫' + icon
@@ -155,7 +155,7 @@
       // Другие платформы
       text = platform.length > 10 ? platform.substring(0, 8) + '...' : platform
     }
-    
+
     return { icon, text, title }
   }
 
@@ -507,7 +507,8 @@
                       📅 {new Date(order.created_at).toLocaleDateString('ru')}
                     </div>
                     <div class="order-platform" title={platformInfo.title}>
-                      {platformInfo.icon} {platformInfo.text}
+                      {platformInfo.icon}
+                      {platformInfo.text}
                     </div>
                   </div>
                 </div>

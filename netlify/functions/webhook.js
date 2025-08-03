@@ -139,6 +139,27 @@ export const handler = async (event) => {
     const ADMIN_CHAT_ID = '1155907659'
     const WEBAPP_URL = 'https://tma-webapp-store.netlify.app/'
 
+    // Настройка Menu Button (кнопка "Open" в меню чата)
+    const setupMenuButton = async () => {
+      try {
+        await bot.telegram.setChatMenuButton({
+          menu_button: {
+            type: 'web_app',
+            text: '🛍️ Каталог услуг',
+            web_app: {
+              url: WEBAPP_URL
+            }
+          }
+        })
+        console.log('✅ Menu button updated successfully')
+      } catch (error) {
+        console.error('❌ Failed to set menu button:', error)
+      }
+    }
+
+    // Устанавливаем Menu Button при первом запуске
+    await setupMenuButton()
+
     // Парсим JSON из event.body
     let requestBody
     try {
@@ -189,10 +210,34 @@ export const handler = async (event) => {
           '📋 Доступные команды:\n\n' +
           '/start - Начать работу с ботом\n' +
           '/webapp - Открыть каталог услуг\n' +
-          '/help - Показать эту справку\n\n' +
+          '/help - Показать эту справку\n' +
+          '/updatemenu - Обновить кнопку меню (для админов)\n\n' +
           '🛎️ Для заказа услуг используйте веб-приложение!'
 
         ctx.reply(helpMessage)
+      })
+
+      // Команда для принудительного обновления Menu Button (только для админов)
+      bot.command('updatemenu', async (ctx) => {
+        const userId = ctx.from.id.toString()
+        
+        // Проверяем, является ли пользователь администратором
+        const userIsAdmin = await isAdmin(userId)
+        const userIsSuperAdmin = await isSuperAdmin(userId)
+        
+        if (!userIsAdmin && !userIsSuperAdmin) {
+          ctx.reply('❌ Эта команда доступна только администраторам')
+          return
+        }
+
+        try {
+          await setupMenuButton()
+          ctx.reply('✅ Кнопка меню успешно обновлена!')
+          console.log(`🔄 Menu button updated by admin ${userId}`)
+        } catch (error) {
+          ctx.reply('❌ Ошибка при обновлении кнопки меню')
+          console.error('❌ Menu button update failed:', error)
+        }
       })
 
       // Обработка веб-данных от приложения
@@ -461,8 +506,9 @@ export const handler = async (event) => {
                 headers,
                 body: JSON.stringify({ success: true, userData })
               }
-            } catch (telegramError) {
+            } catch (error) {
               // Если не удалось получить через Telegram API, возвращаем ошибку
+              console.error('❌ Failed to get user data from Telegram:', error)
               return {
                 statusCode: 404,
                 headers,
